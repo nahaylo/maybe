@@ -1,0 +1,17 @@
+<%# locals: (form:, category:, filter_name: nil, nested: false, checkbox_data: {}) %>
+<div class="filterable-item flex items-center gap-2 p-2" data-filter-name="<%= filter_name || category.name %>">
+  <%= form.check_box :categories,
+                     {
+                       multiple: true,
+                       checked: @q[:categories]&.include?(category.name),
+                       class: "checkbox checkbox--light",
+                       data: checkbox_data
+                     },
+                     category.name,
+                     nil %>
+  <%# Same marker the budget and category lists use for a subcategory. %>
+  <%= icon("corner-down-right", size: "sm") if nested %>
+  <%= form.label :categories, category.name, value: category.name, class: "text-sm text-primary cursor-pointer" do %>
+    <%= render partial: "categories/badge", locals: { category: category } %>
+  <% end %>
+</div>

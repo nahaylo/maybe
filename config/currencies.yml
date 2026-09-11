@@ -1105,8 +1105,10 @@ tzs:
   default_format: "%u%n"
   default_precision: 2
 uah:
+  # Priority 0 floats UAH above USD (1) and EUR (2) so it heads every currency
+  # dropdown -- Money::Currency.as_options sorts on [priority, name].
   name: Ukrainian Hryvnia
-  priority: 100
+  priority: 0
   iso_code: UAH
   iso_numeric: "980"
   html_code: "&#x20B4;"

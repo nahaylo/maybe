@@ -22,7 +22,9 @@ class TransactionsControllerTest < ActionDispatch::IntegrationTest
           entryable_attributes: {
             tag_ids: [ Tag.first.id, Tag.second.id ],
             category_id: Category.first.id,
-            merchant_id: Merchant.first.id
+            merchant_id: Merchant.first.id,
+            quantity: 2.5,
+            unit: "kg"
           }
         }
       }
@@ -30,12 +32,34 @@ class TransactionsControllerTest < ActionDispatch::IntegrationTest
 
     created_entry = Entry.order(:created_at).last
 
+    assert_equal 2.5, created_entry.transaction.quantity
+    assert_equal "kg", created_entry.transaction.unit
+
     assert_redirected_to account_url(created_entry.account)
     assert_equal "Transaction created", flash[:notice]
     assert_enqueued_with(job: SyncJob)
   end
 
+  # The drawer auto-submits each field independently, so clearing the quantity
+  # must succeed rather than 422 on a half-filled pair.
+  test "clearing the quantity also clears the unit" do
+    @entry.entryable.update!(quantity: 2.5, unit: "kg")
+
+    patch transaction_url(@entry), params: {
+      entry: {
+        entryable_type: @entry.entryable_type,
+        entryable_attributes: { id: @entry.entryable_id, quantity: "" }
+      }
+    }
+
+    assert_response :redirect
+    assert_nil @entry.entryable.reload.quantity
+    assert_nil @entry.entryable.unit
+  end
+
   test "updates with transaction details" do
+    car = @entry.account.family.accounts.create!(name: "Car", balance: 0, currency: "USD", accountable: Vehicle.new)
+
     assert_no_difference [ "Entry.count", "Transaction.count" ] do
       patch transaction_url(@entry), params: {
         entry: {
@@ -51,7 +75,10 @@ class TransactionsControllerTest < ActionDispatch::IntegrationTest
             id: @entry.entryable_id,
             tag_ids: [ Tag.first.id, Tag.second.id ],
             category_id: Category.first.id,
-            merchant_id: Merchant.first.id
+            merchant_id: Merchant.first.id,
+            attributed_account_id: car.id,
+            quantity: 3,
+            unit: "l"
           }
         }
       }
@@ -66,6 +93,10 @@ class TransactionsControllerTest < ActionDispatch::IntegrationTest
     assert_equal [ Tag.first.id, Tag.second.id ], @entry.entryable.tag_ids.sort
     assert_equal Category.first.id, @entry.entryable.category_id
     assert_equal Merchant.first.id, @entry.entryable.merchant_id
+    assert_equal car.id, @entry.entryable.attributed_account_id
+    assert @entry.entryable.locked?(:attributed_account_id), "a drawer edit should lock the attribution against rules"
+    assert_equal 3, @entry.entryable.quantity
+    assert_equal "l", @entry.entryable.unit
     assert_equal "test notes", @entry.notes
     assert_equal false, @entry.excluded
 

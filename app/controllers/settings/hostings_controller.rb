@@ -3,11 +3,19 @@ class Settings::HostingsController < ApplicationController
 
   guard_feature unless: -> { self_hosted? }
 
-  before_action :ensure_admin, only: :clear_cache
+  before_action :ensure_admin, only: %i[clear_cache sync_market_data]
 
   def show
     synth_provider = Provider::Registry.get_provider(:synth)
     @synth_usage = synth_provider&.usage
+  end
+
+  # Fetches any exchange rates and prices the app is missing. Runs in the
+  # background because a full import walks every pair the family needs.
+  def sync_market_data
+    ImportMarketDataJob.perform_later(mode: "snapshot")
+
+    redirect_back_or_to root_path, notice: "Fetching the latest exchange rates. This may take a moment."
   end
 
   def update

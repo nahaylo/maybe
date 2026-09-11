@@ -1,0 +1,70 @@
+---
+http_interactions:
+- request:
+    method: get
+    uri: https://bank.gov.ua/NBUStatService/v1/statdirectory/exchange?date=20240102&json=&valcode=USD
+    body:
+      encoding: US-ASCII
+      string: ''
+    headers:
+      User-Agent:
+      - Faraday v2.13.2
+      Accept-Encoding:
+      - gzip;q=1.0,deflate;q=0.6,identity;q=0.3
+      Accept:
+      - "*/*"
+  response:
+    status:
+      code: 200
+      message: OK
+    headers:
+      Date:
+      - Tue, 25 Aug 2026 12:58:44 GMT
+      Content-Type:
+      - application/json; charset=utf-8
+      Transfer-Encoding:
+      - chunked
+      Connection:
+      - keep-alive
+      Server:
+      - cloudflare
+      Nel:
+      - '{"report_to":"cf-nel","success_fraction":0.01,"max_age":604800}'
+      Vary:
+      - Accept-Encoding
+      X-Powered-By:
+      - Servlet/3.1
+      Statusrequest:
+      - OK+%C2%E8%EA%EE%ED%E0%ED%EE
+      Filename:
+      - exchange
+      X-Xss-Protection:
+      - '1'
+      X-Frame-Options:
+      - SAMEORIGIN
+      X-Content-Type-Options:
+      - nosniff
+      Content-Language:
+      - uk-UA
+      X-Cache-Status:
+      - HIT
+      Access-Control-Allow-Origin:
+      - "*"
+      X-Request-Id:
+      - 74d7c2484b2dd470d7072350ffe5ab32
+      Cf-Cache-Status:
+      - DYNAMIC
+      Set-Cookie:
+      - __cf_bm=WoKPUb7BSS5KHTwS5L763svCmnwZ.MKUkjed2eZPLxI-1787662724.27016-1.0.1.1-XUxOMdtBg0LCN60MDllyfWq.LJMnBd8OWQZPaPufkMoXYUe9X1a6Lpx4stt0DQpkKdiZQN2ZJ_4ESB9TNRG.vMjflVUL5ZmpHLP4o40zFGtkIKlP_71BIWjWPmABM6K9nrsb.77ElAjHHf5JGChisA;
+        HttpOnly; SameSite=None; Secure; Path=/; Domain=bank.gov.ua; Expires=Tue,
+        25 Aug 2026 13:28:44 GMT
+      Report-To:
+      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=Cnk9UZAaRqHkEWIyXkGUsyBgjuTgLWdZRyXXBBjtonzccmBT6Cu1EJRGsM9adgk0OAH0i%2FimdH7sE1R7O7cQK%2B%2Bj8tQlUTdsq07FkN1GC13Er4nGm80iHlDuCCsL"}]}'
+      Cf-Ray:
+      - a30ac51aaedbc07c-WAW
+    body:
+      encoding: ASCII-8BIT
+      string: !binary |-
+        Ww0KeyANCiJyMDMwIjo4NDAsInR4dCI6ItCU0L7Qu9Cw0YAg0KHQqNCQIiwicmF0ZSI6MzguMDE0NCwiY2MiOiJVU0QiLCJleGNoYW5nZWRhdGUiOiIwMi4wMS4yMDI0Iiwic3BlY2lhbCI6bnVsbA0KIH0NCl0NCg==
+  recorded_at: Tue, 25 Aug 2026 12:58:44 GMT
+recorded_with: VCR 6.3.1

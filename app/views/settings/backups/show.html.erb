@@ -1,0 +1,90 @@
+<%= settings_section title: t(".location_title"), subtitle: t(".location_subtitle") do %>
+  <%= styled_form_with model: Setting.new, url: settings_backup_path, method: :patch, scope: :setting, class: "space-y-3" do |form| %>
+    <%= form.text_field :backup_subdirectory,
+          value: Setting.backup_subdirectory,
+          label: t(".folder_label"),
+          placeholder: "maybe-backups" %>
+
+    <p class="text-sm text-secondary">
+      <%= t(".resolves_to") %>
+      <code class="text-primary break-all"><%= DatabaseBackup.host_directory || DatabaseBackup.directory %></code>
+      <% if DatabaseBackup.host_directory %>
+        <span class="text-subdued"><%= t(".in_container", path: DatabaseBackup.directory) %></span>
+      <% end %>
+    </p>
+
+    <% unless DatabaseBackup.mounted? %>
+      <%= render DS::Alert.new(message: t(".not_mounted", mount: DatabaseBackup::MOUNT_ROOT), variant: :warning) %>
+    <% end %>
+
+    <% if DatabaseBackup.subdirectory.blank? %>
+      <%= render DS::Alert.new(message: t(".blank_folder"), variant: :error) %>
+    <% elsif !DatabaseBackup.directory_exists? %>
+      <%# Never created automatically: the folder has to be shared from the host. %>
+      <%= render DS::Alert.new(
+            message: t(".missing_directory", path: DatabaseBackup.host_directory || DatabaseBackup.directory),
+            variant: :error
+          ) %>
+    <% elsif !DatabaseBackup.directory_writable? %>
+      <%= render DS::Alert.new(message: t(".not_writable", path: DatabaseBackup.directory), variant: :error) %>
+    <% elsif !DatabaseBackup.directory_persistent? %>
+      <%# Writable but inside the container's own filesystem, so `docker compose
+          up -d` would delete every backup here without warning. %>
+      <%= render DS::Alert.new(
+            message: t(".not_persistent",
+                       path: DatabaseBackup.directory,
+                       hints: DatabaseBackup.persistent_directory_hints.join(", ").presence || t(".no_hints")),
+            variant: :warning
+          ) %>
+    <% end %>
+
+    <%= form.submit t(".save_path") %>
+  <% end %>
+<% end %>
+
+<%= settings_section title: t(".backups_title"), subtitle: t(".backups_subtitle") do %>
+  <div class="space-y-4">
+    <%# DS::Button wraps button_to when given an href, so this POSTs. A bare
+        button_to needs its own styling and renders as plain text without it. %>
+    <%= render DS::Button.new(
+          text: t(".create"),
+          href: settings_backup_path,
+          variant: "primary",
+          icon: "hard-drive-download"
+        ) %>
+
+    <% if @backups.any? %>
+      <div class="rounded-lg shadow-border-xs divide-y divide-alpha-black-100 theme-dark:divide-alpha-white-200">
+        <% @backups.each do |backup| %>
+          <div class="flex items-center justify-between gap-4 p-3">
+            <div class="min-w-0">
+              <p class="text-sm font-medium text-primary truncate"><%= backup.filename %></p>
+              <p class="text-xs text-secondary">
+                <%= number_to_human_size(backup.size) %> &middot; <%= l(backup.created_at, format: :long) %>
+              </p>
+            </div>
+
+            <div class="flex items-center gap-2 shrink-0">
+              <%= render DS::Link.new(
+                    text: t(".download"),
+                    href: download_settings_backup_path(filename: backup.filename),
+                    variant: "outline",
+                    icon: "download"
+                  ) %>
+
+              <%= button_to file_settings_backup_path(filename: backup.filename),
+                    method: :delete,
+                    class: "flex items-center justify-center cursor-pointer text-secondary hover:text-destructive",
+                    title: t(".delete"),
+                    data: { turbo_confirm: CustomConfirm.for_resource_deletion(backup.filename).to_data_attribute } do %>
+                <%= icon "trash-2", size: "sm", color: "current" %>
+              <% end %>
+            </div>
+          </div>
+        <% end %>
+      </div>
+    <% else %>
+      <p class="text-sm text-secondary"><%= t(".empty") %></p>
+    <% end %>
+  </div>
+<% end %>

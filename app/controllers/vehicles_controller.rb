@@ -2,6 +2,6 @@ class VehiclesController < ApplicationController
   include AccountableResource
 
   permitted_accountable_attributes(
-    :id, :make, :model, :year, :mileage_value, :mileage_unit
+    :id, :make, :model, :year, :mileage_value, :mileage_unit, :fuel_category_id
   )
 end

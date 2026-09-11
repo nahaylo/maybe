@@ -20,7 +20,10 @@
       <div class="grow p-3 border-b border-secondary overflow-y-auto">
         <% transaction_search_filters.each do |filter| %>
           <%= tabs.with_panel(tab_id: filter[:key]) do %>
-            <%= render partial: get_transaction_search_filter_partial_path(filter), locals: { form: form } %>
+            <%# The type filter needs the current selection to render its checkboxes;
+                every other filter partial reads @q itself. %>
+            <%= render partial: get_transaction_search_filter_partial_path(filter),
+                       locals: { form: form }.merge(filter[:key] == "type_filter" ? { types: @q[:types] } : {}) %>
           <% end %>
         <% end %>
       </div>

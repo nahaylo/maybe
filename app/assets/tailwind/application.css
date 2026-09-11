@@ -88,8 +88,42 @@
     @apply text-lg font-medium text-primary;
   }
 
+  h4 {
+    @apply text-base font-medium text-primary mt-6 mb-2;
+  }
+
   li {
     @apply m-0 text-primary;
+  }
+
+  strong {
+    @apply text-primary;
+  }
+
+  /* The typography plugin's defaults are light-only and wrap inline code in
+     literal backticks; use the design system's tokens so both themes read. */
+  code {
+    @apply font-mono text-xs font-normal text-primary bg-container-inset rounded px-1 py-0.5;
+
+    &::before, &::after {
+      content: none;
+    }
+  }
+
+  pre {
+    @apply bg-container-inset text-primary border border-secondary rounded-lg text-xs;
+
+    code {
+      @apply bg-transparent p-0;
+    }
+  }
+
+  th, td {
+    @apply text-primary;
+  }
+
+  hr {
+    @apply border-secondary;
   }
 
   details {

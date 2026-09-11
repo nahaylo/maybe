@@ -103,6 +103,12 @@
   <%= form.select :tags_col_label,
                   import.csv_headers,
                   { include_blank: "Leave empty", label: "Tags" } %>
+  <%= form.select :qty_col_label,
+                  import.csv_headers,
+                  { include_blank: "Leave empty", label: "Quantity" } %>
+  <%= form.select :unit_col_label,
+                  import.csv_headers,
+                  { include_blank: "Leave empty", label: "Unit" } %>
   <%= form.select :notes_col_label,
                   import.csv_headers,
                   { include_blank: "Leave empty", label: "Notes" } %>

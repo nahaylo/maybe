@@ -4,22 +4,39 @@ en:
     edit:
       edit: Edit %{account}
     form:
+      fuel_category: Fuel category
+      fuel_category_blank: Not tracked
       make: Make
       make_placeholder: Toyota
-      mileage: Mileage
-      mileage_placeholder: '15000'
-      mileage_unit: Unit
       model: Model
       model_placeholder: Camry
       year: Year
       year_placeholder: '2023'
     new:
       title: Enter vehicle details
-    overview:
-      current_price: Current Price
-      make_model: Make & Model
-      mileage: Mileage
-      purchase_price: Purchase Price
-      trend: Trend
-      unknown: Unknown
-      year: Year
+    tabs:
+      costs:
+        amount: Amount
+        empty: Nothing attributed to this vehicle yet. Point a rule's "Attribute to account" action at it, or set "Attributed to" on a transaction.
+        summary: "%{count} transactions · %{total}"
+        title: Costs
+        transaction: Transaction
+      overview:
+        after_sale: "after %{amount} sale"
+        cost_per_km: Cost per km
+        current_price: Current Price
+        distance: Distance
+        economy_between_readings: Fuel economy between readings
+        fuel_economy: Fuel economy
+        fuel_spend: Fuel spend
+        fuel_volume: Fuel volume
+        make_model: Make & Model
+        mileage: Mileage
+        period: Period
+        purchase_price: Purchase Price
+        running_costs: Running costs
+        running_per_km: "%{amount} running"
+        total_cost: Total cost of ownership
+        trend: Trend
+        unknown: Unknown
+        year: Year

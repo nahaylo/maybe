@@ -9,6 +9,35 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `bin/rails server` - Start Rails server only
 - `bin/rails console` - Open Rails console
 
+### Running under Docker (this checkout)
+
+The local Docker stack runs Rails in **production mode**, which caches classes.
+Source is bind-mounted, but the running server does **not** reload it.
+
+**A code change is not live until the server is restarted:**
+
+```bash
+docker compose restart web worker      # Ruby / view changes
+docker compose build web && docker compose up -d   # Gemfile, Dockerfile, or asset changes
+```
+
+**Never verify a UI change with `bin/rails runner` alone.** `runner` spawns a
+fresh process and therefore sees new code immediately, while the web server the
+user is looking at is still running the old class in memory. Verifying that way
+reports success on a page that cannot have changed. Restart first, then check
+the page.
+
+**Anything behind `Rails.cache.fetch` also needs the cache cleared.** Several
+cache keys (e.g. `BalanceSheet::AccountTotals#query`) invalidate on *data*
+updates only, so a code change alone leaves stale output:
+
+```bash
+docker compose exec -T web bin/rails runner 'Rails.cache.clear'
+```
+
+Rake tasks and `runner` invocations always pick up edits immediately; only the
+long-running `web` and `worker` processes need the restart.
+
 ### Testing
 - `bin/rails test` - Run all tests
 - `bin/rails test:db` - Run tests with database reset

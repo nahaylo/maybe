@@ -105,28 +105,11 @@ class Transaction::Search
       query
     end
 
+    # `family.transactions` is based on `transactions` and already joins entries,
+    # so the shared condition applies directly with no extra join.
     def apply_type_filter(query, types)
-      return query unless types.present?
-      return query if types.sort == [ "expense", "income", "transfer" ]
-
-      transfer_condition = "transactions.kind IN ('funds_movement', 'cc_payment', 'loan_payment')"
-      expense_condition = "entries.amount >= 0"
-      income_condition = "entries.amount <= 0"
-
-      condition = case types.sort
-      when [ "transfer" ]
-        transfer_condition
-      when [ "expense" ]
-        Arel.sql("#{expense_condition} AND NOT (#{transfer_condition})")
-      when [ "income" ]
-        Arel.sql("#{income_condition} AND NOT (#{transfer_condition})")
-      when [ "expense", "transfer" ]
-        Arel.sql("#{expense_condition} OR #{transfer_condition}")
-      when [ "income", "transfer" ]
-        Arel.sql("#{income_condition} OR #{transfer_condition}")
-      when [ "expense", "income" ]
-        Arel.sql("NOT (#{transfer_condition})")
-      end
+      condition = EntrySearch.type_condition(types)
+      return query if condition.nil?
 
       query.where(condition)
     end

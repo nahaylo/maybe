@@ -1,0 +1,49 @@
+---
+http_interactions:
+- request:
+    method: get
+    uri: https://api.frankfurter.dev/v1/2024-01-02?base=USD&symbols=GBP
+    body:
+      encoding: US-ASCII
+      string: ''
+    headers:
+      User-Agent:
+      - Faraday v2.13.2
+      Accept-Encoding:
+      - gzip;q=1.0,deflate;q=0.6,identity;q=0.3
+      Accept:
+      - "*/*"
+  response:
+    status:
+      code: 200
+      message: OK
+    headers:
+      Date:
+      - Tue, 25 Aug 2026 12:58:22 GMT
+      Content-Type:
+      - application/json; charset=utf-8
+      Transfer-Encoding:
+      - chunked
+      Connection:
+      - keep-alive
+      Cache-Control:
+      - public, max-age=86400
+      Nel:
+      - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
+      Vary:
+      - Origin
+      Report-To:
+      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=1TF92HzIotxa7RlqjpWPp1Mx%2F1wP%2Bw5SOgpchjFmEAaXwRzLGbsmxCTzVYsrVCifT7BDEWkr9NuXUmXIshITATc2m2VmgcjYj0ric26QmT%2FeLbPqw6jtekHWcpGuONxMENpQOSY%3D"}]}'
+      Cf-Cache-Status:
+      - MISS
+      Etag:
+      - W/"ae354a0c189267ef9fa0638a19f3b7d4"
+      Server:
+      - cloudflare
+      Cf-Ray:
+      - a30ac491ff4e1207-WAW
+    body:
+      encoding: ASCII-8BIT
+      string: '{"amount":1.0,"base":"USD","date":"2024-01-02","rates":{"GBP":0.79085}}'
+  recorded_at: Tue, 25 Aug 2026 12:58:22 GMT
+recorded_with: VCR 6.3.1

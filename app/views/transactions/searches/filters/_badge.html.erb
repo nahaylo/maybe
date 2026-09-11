@@ -1,4 +1,4 @@
-<%# locals: (param_key:, param_value:) %>
+<%# locals: (param_key:, param_value:, clear_path:, clear_method: :delete) %>
 <li class="flex items-center gap-1 text-sm border border-secondary rounded-3xl p-1.5">
   <% if param_key == "start_date" || param_key == "end_date" %>
     <div class="flex items-center gap-2">
@@ -21,6 +21,18 @@
       <div class="w-5 h-5 bg-blue-600/10 text-xs flex items-center justify-center rounded-full"><%= param_value[0].upcase %></div>
       <p><%= param_value %></p>
     </div>
+  <% elsif param_key == "categories" %>
+    <%# The category's own icon, in its own colour, so a chip is recognisable at
+        a glance the way it is in the filter list it was picked from. %>
+    <% category = filter_category(param_value) %>
+    <div class="flex items-center gap-2">
+      <% if category&.lucide_icon.present? %>
+        <span style="color: <%= category.color %>">
+          <%= icon category.lucide_icon, size: "sm", color: "current" %>
+        </span>
+      <% end %>
+      <p><%= param_value %></p>
+    </div>
   <% elsif param_key == "amount" %>
     <div class="flex items-center gap-2">
       <%= icon "hash" %>
@@ -41,10 +53,18 @@
     </div>
   <% end %>
 
-  <%= button_to clear_filter_transactions_path(param_key: param_key, param_value: param_value, **request.query_parameters),
-        method: :delete,
-        data: { turbo: false },
-        class: "flex items-center cursor-pointer" do %>
-    <%= icon "x", size: "sm", class: "hover:text-primary" %>
+  <%# A GET form drops its action's query string in every browser, so pages that
+      clear by re-navigating pass clear_method: :get and get a link instead. %>
+  <% if clear_method.to_sym == :get %>
+    <%= link_to clear_path, class: "flex items-center cursor-pointer" do %>
+      <%= icon "x", size: "sm", class: "hover:text-primary" %>
+    <% end %>
+  <% else %>
+    <%= button_to clear_path,
+          method: clear_method,
+          data: { turbo: false },
+          class: "flex items-center cursor-pointer" do %>
+      <%= icon "x", size: "sm", class: "hover:text-primary" %>
+    <% end %>
   <% end %>
 </li>

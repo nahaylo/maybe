@@ -145,6 +145,7 @@ class Import < ApplicationRecord
         name: (row[name_col_label] || default_row_name).to_s,
         category: row[category_col_label].to_s,
         tags: row[tags_col_label].to_s,
+        unit: row[unit_col_label].to_s.downcase,
         entity_type: row[entity_type_col_label].to_s,
         notes: row[notes_col_label].to_s
       }

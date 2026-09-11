@@ -5,6 +5,11 @@ class Setting < RailsSettings::Base
   field :synth_api_key, type: :string, default: ENV["SYNTH_API_KEY"]
   field :openai_access_token, type: :string, default: ENV["OPENAI_ACCESS_TOKEN"]
 
+  # Subfolder of the backup mount (see DatabaseBackup::MOUNT_ROOT) that dumps are
+  # written to. Only the subfolder is configurable in-app: the host folder behind
+  # the mount is fixed when the container starts.
+  field :backup_subdirectory, type: :string, default: ENV.fetch("BACKUP_SUBDIRECTORY", "maybe-backups")
+
   field :require_invite_for_signup, type: :boolean, default: false
   field :require_email_confirmation, type: :boolean, default: ENV.fetch("REQUIRE_EMAIL_CONFIRMATION", "true") == "true"
 end

@@ -33,10 +33,21 @@ class Category < ApplicationRecord
 
     delegate :name, :color, to: :category
 
+    # Groups a flat list of categories under their parents, preserving the order
+    # the list came in.
+    #
+    # Grouped from the list itself rather than by asking each parent for its
+    # subcategories: that saves a query per parent, and it keeps a category
+    # whose parent is absent from the list visible as a group of its own instead
+    # of dropping it silently.
     def self.for(categories)
-      categories.select { |category| category.parent_id.nil? }.map do |category|
-        new(category, category.subcategories)
-      end
+      categories = categories.to_a
+      ids = categories.filter_map(&:id).to_set
+
+      nested, top_level = categories.partition { |category| category.parent_id.present? && ids.include?(category.parent_id) }
+      subcategories = nested.group_by(&:parent_id)
+
+      top_level.map { |category| new(category, subcategories[category.id]) }
     end
 
     def initialize(category, subcategories = nil)

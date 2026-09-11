@@ -158,7 +158,9 @@ class Api::V1::TransactionsControllerTest < ActionDispatch::IntegrationTest
         amount: 25.00,
         date: Date.current,
         currency: "USD",
-        nature: "expense"
+        nature: "expense",
+        quantity: 1.5,
+        unit: "l"
       }
     }
 
@@ -172,6 +174,20 @@ class Api::V1::TransactionsControllerTest < ActionDispatch::IntegrationTest
     response_data = JSON.parse(response.body)
     assert_equal "Test Transaction", response_data["name"]
     assert_equal @account.id, response_data["account"]["id"]
+    assert_equal "1.5", response_data["quantity"]
+    assert_equal "l", response_data["unit"]
+  end
+
+  test "should clear quantity and unit when sent blank" do
+    @transaction.update!(quantity: 2.5, unit: "kg")
+
+    patch api_v1_transaction_url(@transaction),
+          params: { transaction: { quantity: "", unit: "" } },
+          headers: api_headers(@api_key)
+
+    assert_response :success
+    assert_nil @transaction.reload.quantity
+    assert_nil @transaction.unit
   end
 
   test "should reject create with read-only API key" do

@@ -69,6 +69,70 @@ class TransactionImportTest < ActiveSupport::TestCase
     assert_equal "complete", @import.status
   end
 
+  test "imports quantity and unit" do
+    import = <<~CSV
+      date,name,amount,qty,unit
+      01/01/2024,Groceries,100,2.5,kg
+      01/02/2024,Coffee,20,3,PCS
+      01/03/2024,Rent,300,,
+    CSV
+
+    @import.update!(
+      account: accounts(:depository),
+      raw_file_str: import,
+      date_col_label: "date",
+      amount_col_label: "amount",
+      name_col_label: "name",
+      qty_col_label: "qty",
+      unit_col_label: "unit",
+      date_format: "%m/%d/%Y"
+    )
+
+    @import.generate_rows_from_csv
+    @import.reload
+
+    assert @import.cleaned?
+
+    @import.publish
+    assert_equal "complete", @import.status
+
+    by_name = Entry.where(import: @import).index_by(&:name)
+    assert_equal 3, by_name.size
+
+    assert_equal 2.5, by_name["Groceries"].transaction.quantity
+    assert_equal "kg", by_name["Groceries"].transaction.unit
+
+    assert_equal 3, by_name["Coffee"].transaction.quantity
+    assert_equal "pcs", by_name["Coffee"].transaction.unit
+
+    assert_nil by_name["Rent"].transaction.quantity
+    assert_nil by_name["Rent"].transaction.unit
+  end
+
+  test "flags rows with an unknown unit instead of failing the publish" do
+    import = <<~CSV
+      date,name,amount,qty,unit
+      01/01/2024,Groceries,100,2.5,furlong
+    CSV
+
+    @import.update!(
+      account: accounts(:depository),
+      raw_file_str: import,
+      date_col_label: "date",
+      amount_col_label: "amount",
+      name_col_label: "name",
+      qty_col_label: "qty",
+      unit_col_label: "unit",
+      date_format: "%m/%d/%Y"
+    )
+
+    @import.generate_rows_from_csv
+    @import.reload
+
+    assert_not @import.cleaned?
+    assert_match(/must be one of/, @import.rows.first.errors.full_messages.to_sentence)
+  end
+
   test "imports transactions with separate type column for signage convention" do
     import = <<~CSV
       date,amount,amount_type

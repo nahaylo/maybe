@@ -30,5 +30,20 @@ export default class extends Controller {
     if (noMatchFound && this.hasEmptyMessageTarget) {
       this.emptyMessageTarget.classList.remove("hidden");
     }
+
+    this.hideEmptyGroups();
+  }
+
+  // A grouped list (categories under their parent) would otherwise leave the
+  // group container behind as an empty box once all of its items are filtered
+  // out. No-op for flat lists, which have no groups.
+  hideEmptyGroups() {
+    this.listTarget.querySelectorAll("[data-filter-group]").forEach((group) => {
+      const hasVisibleItem = Array.from(
+        group.querySelectorAll(".filterable-item"),
+      ).some((item) => item.style.display !== "none");
+
+      group.style.display = hasVisibleItem ? "" : "none";
+    });
   }
 }

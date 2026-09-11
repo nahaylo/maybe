@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.2].define(version: 2025_07_24_115507) do
+ActiveRecord::Schema[7.2].define(version: 2026_09_08_153949) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pgcrypto"
   enable_extension "plpgsql"
@@ -29,17 +29,21 @@ ActiveRecord::Schema[7.2].define(version: 2025_07_24_115507) do
     t.uuid "accountable_id"
     t.decimal "balance", precision: 19, scale: 4
     t.string "currency"
-    t.virtual "classification", type: :string, as: "\nCASE\n    WHEN ((accountable_type)::text = ANY ((ARRAY['Loan'::character varying, 'CreditCard'::character varying, 'OtherLiability'::character varying])::text[])) THEN 'liability'::text\n    ELSE 'asset'::text\nEND", stored: true
+    t.virtual "classification", type: :string, as: "\nCASE\n    WHEN ((accountable_type)::text = ANY (ARRAY[('Loan'::character varying)::text, ('CreditCard'::character varying)::text, ('OtherLiability'::character varying)::text])) THEN 'liability'::text\n    ELSE 'asset'::text\nEND", stored: true
     t.uuid "import_id"
     t.uuid "plaid_account_id"
     t.decimal "cash_balance", precision: 19, scale: 4, default: "0.0"
     t.jsonb "locked_attributes", default: {}
     t.string "status", default: "active"
+    t.integer "position"
+    t.string "lucide_icon"
+    t.string "custom_color"
     t.index ["accountable_id", "accountable_type"], name: "index_accounts_on_accountable_id_and_accountable_type"
     t.index ["accountable_type"], name: "index_accounts_on_accountable_type"
     t.index ["currency"], name: "index_accounts_on_currency"
     t.index ["family_id", "accountable_type"], name: "index_accounts_on_family_id_and_accountable_type"
     t.index ["family_id", "id"], name: "index_accounts_on_family_id_and_id"
+    t.index ["family_id", "position"], name: "index_accounts_on_family_id_and_position"
     t.index ["family_id", "status"], name: "index_accounts_on_family_id_and_status"
     t.index ["family_id"], name: "index_accounts_on_family_id"
     t.index ["import_id"], name: "index_accounts_on_import_id"
@@ -159,6 +163,12 @@ ActiveRecord::Schema[7.2].define(version: 2025_07_24_115507) do
     t.index ["family_id"], name: "index_budgets_on_family_id"
   end
 
+  create_table "businesses", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.jsonb "locked_attributes", default: {}
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+  end
+
   create_table "categories", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
     t.string "name", null: false
     t.string "color", default: "#6172F3", null: false
@@ -218,6 +228,12 @@ ActiveRecord::Schema[7.2].define(version: 2025_07_24_115507) do
     t.jsonb "locked_attributes", default: {}
   end
 
+  create_table "deposits", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.jsonb "locked_attributes", default: {}
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+  end
+
   create_table "entries", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
     t.uuid "account_id", null: false
     t.string "entryable_type"
@@ -233,8 +249,10 @@ ActiveRecord::Schema[7.2].define(version: 2025_07_24_115507) do
     t.boolean "excluded", default: false
     t.string "plaid_id"
     t.jsonb "locked_attributes", default: {}
+    t.string "external_id"
     t.index "lower((name)::text)", name: "index_entries_on_lower_name"
     t.index ["account_id", "date"], name: "index_entries_on_account_id_and_date"
+    t.index ["account_id", "external_id"], name: "index_entries_on_account_id_and_external_id", unique: true, where: "(external_id IS NOT NULL)"
     t.index ["account_id"], name: "index_entries_on_account_id"
     t.index ["date"], name: "index_entries_on_date"
     t.index ["entryable_type"], name: "index_entries_on_entryable_type"
@@ -347,6 +365,7 @@ ActiveRecord::Schema[7.2].define(version: 2025_07_24_115507) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.string "exchange_operating_mic"
+    t.string "unit"
     t.index ["import_id"], name: "index_import_rows_on_import_id"
   end
 
@@ -380,6 +399,7 @@ ActiveRecord::Schema[7.2].define(version: 2025_07_24_115507) do
     t.string "exchange_operating_mic_col_label"
     t.string "amount_type_strategy", default: "signed_amount"
     t.string "amount_type_inflow_value"
+    t.string "unit_col_label"
     t.index ["family_id"], name: "index_imports_on_family_id"
   end
 
@@ -454,6 +474,13 @@ ActiveRecord::Schema[7.2].define(version: 2025_07_24_115507) do
     t.index ["chat_id"], name: "index_messages_on_chat_id"
   end
 
+  create_table "mileages", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.string "unit", default: "km", null: false
+    t.jsonb "locked_attributes", default: {}
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+  end
+
   create_table "mobile_devices", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
     t.uuid "user_id", null: false
     t.string "device_id"
@@ -468,6 +495,27 @@ ActiveRecord::Schema[7.2].define(version: 2025_07_24_115507) do
     t.index ["oauth_application_id"], name: "index_mobile_devices_on_oauth_application_id"
     t.index ["user_id", "device_id"], name: "index_mobile_devices_on_user_id_and_device_id", unique: true
     t.index ["user_id"], name: "index_mobile_devices_on_user_id"
+  end
+
+  create_table "monobank_accounts", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.uuid "monobank_item_id", null: false
+    t.uuid "account_id", null: false
+    t.string "monobank_id", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id"], name: "index_monobank_accounts_on_account_id", unique: true
+    t.index ["monobank_item_id", "monobank_id"], name: "index_monobank_accounts_on_monobank_item_id_and_monobank_id", unique: true
+    t.index ["monobank_item_id"], name: "index_monobank_accounts_on_monobank_item_id"
+  end
+
+  create_table "monobank_items", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.uuid "family_id", null: false
+    t.string "name", null: false
+    t.string "access_token", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["family_id", "name"], name: "index_monobank_items_on_family_id_and_name", unique: true
+    t.index ["family_id"], name: "index_monobank_items_on_family_id"
   end
 
   create_table "oauth_access_grants", force: :cascade do |t|
@@ -756,6 +804,11 @@ ActiveRecord::Schema[7.2].define(version: 2025_07_24_115507) do
     t.uuid "merchant_id"
     t.jsonb "locked_attributes", default: {}
     t.string "kind", default: "standard", null: false
+    t.decimal "quantity", precision: 19, scale: 4
+    t.string "unit"
+    t.integer "mcc"
+    t.uuid "attributed_account_id"
+    t.index ["attributed_account_id"], name: "index_transactions_on_attributed_account_id"
     t.index ["category_id"], name: "index_transactions_on_category_id"
     t.index ["kind"], name: "index_transactions_on_kind"
     t.index ["merchant_id"], name: "index_transactions_on_merchant_id"
@@ -822,6 +875,8 @@ ActiveRecord::Schema[7.2].define(version: 2025_07_24_115507) do
     t.string "make"
     t.string "model"
     t.jsonb "locked_attributes", default: {}
+    t.uuid "fuel_category_id"
+    t.index ["fuel_category_id"], name: "index_vehicles_on_fuel_category_id"
   end
 
   add_foreign_key "accounts", "families"
@@ -851,6 +906,9 @@ ActiveRecord::Schema[7.2].define(version: 2025_07_24_115507) do
   add_foreign_key "merchants", "families"
   add_foreign_key "messages", "chats"
   add_foreign_key "mobile_devices", "users"
+  add_foreign_key "monobank_accounts", "accounts", on_delete: :cascade
+  add_foreign_key "monobank_accounts", "monobank_items"
+  add_foreign_key "monobank_items", "families"
   add_foreign_key "oauth_access_grants", "oauth_applications", column: "application_id"
   add_foreign_key "oauth_access_tokens", "oauth_applications", column: "application_id"
   add_foreign_key "plaid_accounts", "plaid_items"
@@ -870,10 +928,12 @@ ActiveRecord::Schema[7.2].define(version: 2025_07_24_115507) do
   add_foreign_key "tags", "families"
   add_foreign_key "tool_calls", "messages"
   add_foreign_key "trades", "securities"
+  add_foreign_key "transactions", "accounts", column: "attributed_account_id", on_delete: :nullify
   add_foreign_key "transactions", "categories", on_delete: :nullify
   add_foreign_key "transactions", "merchants"
   add_foreign_key "transfers", "transactions", column: "inflow_transaction_id", on_delete: :cascade
   add_foreign_key "transfers", "transactions", column: "outflow_transaction_id", on_delete: :cascade
   add_foreign_key "users", "chats", column: "last_viewed_chat_id"
   add_foreign_key "users", "families"
+  add_foreign_key "vehicles", "categories", column: "fuel_category_id", on_delete: :nullify
 end

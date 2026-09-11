@@ -1,0 +1,52 @@
+---
+http_interactions:
+- request:
+    method: get
+    uri: https://api.frankfurter.dev/v1/currencies
+    body:
+      encoding: US-ASCII
+      string: ''
+    headers:
+      User-Agent:
+      - Faraday v2.13.2
+      Accept-Encoding:
+      - gzip;q=1.0,deflate;q=0.6,identity;q=0.3
+      Accept:
+      - "*/*"
+  response:
+    status:
+      code: 200
+      message: OK
+    headers:
+      Date:
+      - Tue, 25 Aug 2026 12:58:22 GMT
+      Content-Type:
+      - application/json; charset=utf-8
+      Transfer-Encoding:
+      - chunked
+      Connection:
+      - keep-alive
+      Cache-Control:
+      - public, max-age=86400
+      Nel:
+      - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
+      Vary:
+      - Origin
+      Age:
+      - '2141'
+      Report-To:
+      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=YXS9j6iqCy9FEEvQeQneK5Y3fW3BHJ2YEVwsesQ9LlfhiKWBvF2Ju13Fq9CITaurlLy8Upzc0UpUXUwgML1M1NmqUSC7%2FOZwr7ciSTb11R6P4hmiZZfgnMysmBP9UtDH%2BCoJ3EU%3D"}]}'
+      Cf-Cache-Status:
+      - HIT
+      Etag:
+      - W/"220ca908ce85caf104814f3d77867b5c"
+      Server:
+      - cloudflare
+      Cf-Ray:
+      - a30ac49449e2f499-WAW
+    body:
+      encoding: ASCII-8BIT
+      string: !binary |-
+        eyJBVUQiOiJBdXN0cmFsaWFuIERvbGxhciIsIkJSTCI6IkJyYXppbGlhbiBSZWFsIiwiQ0FEIjoiQ2FuYWRpYW4gRG9sbGFyIiwiQ0hGIjoiU3dpc3MgRnJhbmMiLCJDTlkiOiJDaGluZXNlIFJlbm1pbmJpIFl1YW4iLCJDWksiOiJDemVjaCBLb3J1bmEiLCJES0siOiJEYW5pc2ggS3JvbmUiLCJFVVIiOiJFdXJvIiwiR0JQIjoiQnJpdGlzaCBQb3VuZCIsIkhLRCI6IkhvbmcgS29uZyBEb2xsYXIiLCJIVUYiOiJIdW5nYXJpYW4gRm9yaW50IiwiSURSIjoiSW5kb25lc2lhbiBSdXBpYWgiLCJJTFMiOiJJc3JhZWxpIE5ldyBTaGVrZWwiLCJJTlIiOiJJbmRpYW4gUnVwZWUiLCJJU0siOiJJY2VsYW5kaWMgS3LDs25hIiwiSlBZIjoiSmFwYW5lc2UgWWVuIiwiS1JXIjoiU291dGggS29yZWFuIFdvbiIsIk1YTiI6Ik1leGljYW4gUGVzbyIsIk1ZUiI6Ik1hbGF5c2lhbiBSaW5nZ2l0IiwiTk9LIjoiTm9yd2VnaWFuIEtyb25lIiwiTlpEIjoiTmV3IFplYWxhbmQgRG9sbGFyIiwiUEhQIjoiUGhpbGlwcGluZSBQZXNvIiwiUExOIjoiUG9saXNoIFrFgm90eSIsIlJPTiI6IlJvbWFuaWFuIExldSIsIlNFSyI6IlN3ZWRpc2ggS3JvbmEiLCJTR0QiOiJTaW5nYXBvcmUgRG9sbGFyIiwiVEhCIjoiVGhhaSBCYWh0IiwiVFJZIjoiVHVya2lzaCBMaXJhIiwiVVNEIjoiVW5pdGVkIFN0YXRlcyBEb2xsYXIiLCJaQVIiOiJTb3V0aCBBZnJpY2FuIFJhbmQifQ==
+  recorded_at: Tue, 25 Aug 2026 12:58:22 GMT
+recorded_with: VCR 6.3.1

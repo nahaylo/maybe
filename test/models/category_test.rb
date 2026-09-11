@@ -30,4 +30,24 @@ class CategoryTest < ActiveSupport::TestCase
 
     assert_equal "Validation failed: Parent can't have more than 2 levels of subcategories", error.message
   end
+  test "Group.for nests subcategories under their parent" do
+    groups = Category::Group.for([ categories(:income), categories(:food_and_drink), categories(:subcategory) ])
+
+    assert_equal [ categories(:income), categories(:food_and_drink) ], groups.map(&:category)
+    assert_empty groups.first.subcategories
+    assert_equal [ categories(:subcategory) ], groups.second.subcategories
+  end
+
+  test "Group.for keeps a subcategory whose parent is missing from the list" do
+    groups = Category::Group.for([ categories(:subcategory) ])
+
+    assert_equal [ categories(:subcategory) ], groups.map(&:category)
+    assert_empty groups.first.subcategories
+  end
+
+  test "Group.for treats an unsaved category as its own group" do
+    groups = Category::Group.for([ Category.uncategorized, categories(:food_and_drink), categories(:subcategory) ])
+
+    assert_equal [ "Uncategorized", "Food & Drink" ], groups.map(&:name)
+  end
 end

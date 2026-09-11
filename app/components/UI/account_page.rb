@@ -1,7 +1,9 @@
 class UI::AccountPage < ApplicationComponent
   attr_reader :account, :chart_view, :chart_period
 
-  renders_one :activity_feed, ->(feed_data:, pagy:, search:) { UI::Account::ActivityFeed.new(feed_data: feed_data, pagy: pagy, search: search) }
+  renders_one :activity_feed, ->(feed_data:, pagy:, search:, types: nil) { UI::Account::ActivityFeed.new(feed_data: feed_data, pagy: pagy, search: search, types: types) }
+  # Vehicles only: spending attributed to the vehicle from other accounts.
+  renders_one :costs
 
   def initialize(account:, chart_view: nil, chart_period: nil, active_tab: nil)
     @account = account
@@ -36,11 +38,18 @@ class UI::AccountPage < ApplicationComponent
     tabs.find { |tab| tab == @active_tab&.to_sym } || tabs.first
   end
 
+  # Order matters twice over: it is the display order, and #active_tab falls
+  # back to the first entry when no ?tab= param is given.
   def tabs
     case account.accountable_type
     when "Investment"
       [ :activity, :holdings ]
-    when "Property", "Vehicle", "Loan"
+    when "Vehicle"
+      # A vehicle's summary -- value, mileage, fuel -- is what you open the page
+      # for. Costs are what it spends elsewhere; its own activity is a handful
+      # of valuations, odometer readings and purchase legs.
+      [ :overview, :costs, :activity ]
+    when "Property", "Loan"
       [ :activity, :overview ]
     else
       [ :activity ]
@@ -51,6 +60,8 @@ class UI::AccountPage < ApplicationComponent
     case tab
     when :activity
       activity_feed
+    when :costs
+      costs
     when :holdings, :overview
       # Accountable is responsible for implementing the partial in the correct folder
       render "#{account.accountable_type.downcase.pluralize}/tabs/#{tab}", account: account

@@ -15,21 +15,26 @@ en:
       none: (none)
       note_label: Notes
       note_placeholder: Enter a note
+      quantity_label: Quantity
       submit: Add transaction
       tags_label: Tags
       transfer: Transfer
+      unit_label: Unit
     new:
       new_transaction: New transaction
     show:
       account_label: Account
       amount: Amount
+      attributed_account_label: Attributed to
       category_label: Category
+      copy_id: Copy ID
       date_label: Date
       delete: Delete
       delete_subtitle: This permanently deletes the transaction, affects your historical
         balances, and cannot be undone.
       delete_title: Delete transaction
       details: Details
+      id_label: ID
       merchant_label: Merchant
       name_label: Name
       nature: Type
@@ -37,9 +42,11 @@ en:
       note_label: Notes
       note_placeholder: Enter a note
       overview: Overview
+      quantity_label: Quantity
       settings: Settings
       tags_label: Tags
       uncategorized: "(uncategorized)"
+      unit_label: Unit
     header:
       edit_categories: Edit categories
       edit_imports: Edit imports

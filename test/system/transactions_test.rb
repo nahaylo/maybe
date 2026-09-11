@@ -188,7 +188,6 @@ class TransactionsTest < ApplicationSystemTestCase
     transfer_date = Date.current
     visit account_url(investment_account, tab: "activity")
     within "[data-testid='activity-menu']" do
-      click_on "New"
       click_on "New transaction"
     end
     select "Deposit", from: "Type"

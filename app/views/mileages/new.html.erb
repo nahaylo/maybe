@@ -1,0 +1,27 @@
+<%= render DS::Dialog.new do |dialog| %>
+  <% dialog.with_header(title: "Record mileage") %>
+  <% dialog.with_body do %>
+    <%= styled_form_with model: @entry, url: mileages_path, class: "space-y-4" do |form| %>
+      <%= form.hidden_field :account_id %>
+
+      <% if @error_message.present? %>
+        <%= render DS::Alert.new(message: @error_message, variant: :error) %>
+      <% end %>
+
+      <div class="space-y-3">
+        <%= form.date_field :date, label: true, required: true, value: Date.current,
+                            min: Entry.min_supported_date, max: Date.current %>
+
+        <div class="flex items-center gap-2">
+          <%= form.number_field :amount, label: "Odometer", required: true, min: 0, step: 1,
+                                placeholder: "78000" %>
+          <%= form.select :unit,
+                          Mileage::UNITS.map { |code, label| [ label, code ] },
+                          { label: "Unit", selected: @entry.account&.vehicle&.mileage_unit } %>
+        </div>
+      </div>
+
+      <%= form.submit "Record mileage" %>
+    <% end %>
+  <% end %>
+<% end %>

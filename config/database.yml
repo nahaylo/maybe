@@ -11,9 +11,13 @@ development:
   <<: *default
   database: <%= ENV.fetch("POSTGRES_DB") { "maybe_development" } %>
 
+# The test database deliberately does NOT read POSTGRES_DB. Sharing that
+# variable with production means a containerised test run (where POSTGRES_DB
+# is set to the production database) would target production and truncate it
+# between tests.
 test:
   <<: *default
-  database: <%= ENV.fetch("POSTGRES_DB") { "maybe_test" } %>
+  database: <%= ENV.fetch("POSTGRES_DB_TEST") { "maybe_test" } %>
 
 production:
   <<: *default

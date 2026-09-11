@@ -18,16 +18,14 @@ class SettingsTest < ApplicationSystemTestCase
   end
 
   test "can access settings from sidebar" do
-    VCR.use_cassette("git_repository_provider/fetch_latest_release_notes") do
-      open_settings_from_sidebar
-      assert_selector "h1", text: "Account"
-      assert_current_path settings_profile_path, ignore_query: true
+    open_settings_from_sidebar
+    assert_selector "h1", text: "Account"
+    assert_current_path settings_profile_path, ignore_query: true
 
-      @settings_links.each do |name, path|
-        click_link name
-        assert_selector "h1", text: name
-        assert_current_path path
-      end
+    @settings_links.each do |name, path|
+      click_link name
+      assert_selector "h1", text: name
+      assert_current_path path
     end
   end
 

@@ -30,7 +30,77 @@
       <p>(<%= account.vehicle.trend.percent %>%)</p>
     </div>
   <% end %>
+
+  <%# Only meaningful once a fuel category is named; hidden entirely otherwise
+      so a vehicle that does not track fuel looks no different than before. %>
+  <% if account.vehicle.tracks_fuel? %>
+    <%= summary_card title: t(".fuel_spend") do %>
+      <%= format_money account.vehicle.fuel_spend %>
+    <% end %>
+
+    <%= summary_card title: t(".fuel_volume") do %>
+      <%= number_with_delimiter(account.vehicle.fuel_litres.round(2)) %> l
+    <% end %>
+
+    <%= summary_card title: t(".fuel_economy") do %>
+      <%= account.vehicle.fuel_economy ? "#{account.vehicle.fuel_economy} l/100 km" : t(".unknown") %>
+    <% end %>
+  <% end %>
+
+  <%# Cost of ownership appears once anything is attributed to the vehicle
+      (or fuel is tracked), otherwise the cards would all read zero. %>
+  <% if account.vehicle.tracks_costs? %>
+    <%= summary_card title: t(".running_costs") do %>
+      <%= format_money account.vehicle.running_costs %>
+    <% end %>
+
+    <%= summary_card title: t(".total_cost") do %>
+      <%= format_money account.vehicle.total_cost_of_ownership %>
+      <% if account.vehicle.sold? %>
+        <p class="text-secondary text-sm font-normal"><%= t(".after_sale", amount: format_money(account.vehicle.sale_proceeds)) %></p>
+      <% end %>
+    <% end %>
+
+    <%= summary_card title: t(".cost_per_km") do %>
+      <% if account.vehicle.cost_per_km %>
+        <%= format_money account.vehicle.cost_per_km %>
+        <p class="text-secondary text-sm font-normal"><%= t(".running_per_km", amount: format_money(account.vehicle.running_cost_per_km)) %></p>
+      <% else %>
+        <%= t(".unknown") %>
+      <% end %>
+    <% end %>
+  <% end %>
 </div>
+
+<% series = account.vehicle.fuel_economy_series %>
+<% if series.any? %>
+  <div class="bg-container rounded-xl shadow-border-xs p-5 mt-4">
+    <h3 class="font-medium mb-3"><%= t(".economy_between_readings") %></h3>
+
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead class="text-secondary text-xs uppercase">
+          <tr>
+            <th class="text-left font-medium pb-2"><%= t(".period") %></th>
+            <th class="text-right font-medium pb-2"><%= t(".distance") %></th>
+            <th class="text-right font-medium pb-2"><%= t(".fuel_volume") %></th>
+            <th class="text-right font-medium pb-2"><%= t(".fuel_economy") %></th>
+          </tr>
+        </thead>
+        <tbody class="text-primary">
+          <% series.reverse.each do |row| %>
+            <tr class="border-t border-secondary">
+              <td class="py-2"><%= row[:from] %> &ndash; <%= row[:to] %></td>
+              <td class="py-2 text-right"><%= number_with_delimiter(row[:km].to_i) %> km</td>
+              <td class="py-2 text-right"><%= number_with_delimiter(row[:litres].round(2)) %> l</td>
+              <td class="py-2 text-right font-medium"><%= row[:economy] %> l/100 km</td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    </div>
+  </div>
+<% end %>
 
 <div class="flex justify-center py-8">
   <%= render DS::Link.new(

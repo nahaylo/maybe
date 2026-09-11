@@ -24,7 +24,7 @@ module AccountableResource
 
   def show
     @chart_view = params[:chart_view] || "balance"
-    @q = params.fetch(:q, {}).permit(:search)
+    @q = params.fetch(:q, {}).permit(:search, types: [])
     entries = @account.entries.search(@q).reverse_chronological
 
     @pagy, @entries = pagy(entries, limit: params[:per_page] || "10")
@@ -80,7 +80,7 @@ module AccountableResource
 
     def account_params
       params.require(:account).permit(
-        :name, :balance, :subtype, :currency, :accountable_type, :return_to,
+        :name, :balance, :subtype, :currency, :accountable_type, :return_to, :lucide_icon, :custom_color,
         accountable_attributes: self.class.permitted_accountable_attributes
       )
     end

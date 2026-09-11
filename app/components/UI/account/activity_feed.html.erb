@@ -3,27 +3,36 @@
     <div class="flex items-center justify-between mb-4" data-testid="activity-menu">
       <%= tag.h2 "Activity", class: "font-medium text-lg" %>
 
-      <% if account.manual? %>
-        <%= render DS::Menu.new(variant: "button") do |menu| %>
-          <% menu.with_button(text: "New", variant: "secondary", icon: "plus") %>
+      <div class="flex items-center gap-2">
+        <%# Valuations are how a vehicle's value moves, so this is the primary
+            action here. Deliberately not offered on other account types: a
+            reconciliation on an imported account would paper over a gap in the
+            import rather than surface it. %>
+        <% if account.vehicle? && account.manual? %>
+          <%= render DS::Link.new(
+              text: "New mileage",
+              variant: "secondary",
+              icon: "gauge",
+              href: new_mileage_path(account_id: account.id),
+              frame: :modal) %>
 
-          <% menu.with_item(
-              variant: "link",
+          <%= render DS::Link.new(
               text: "New balance",
+              variant: "secondary",
               icon: "circle-dollar-sign",
               href: new_valuation_path(account_id: account.id),
-              data: { turbo_frame: :modal }) %>
-
-          <% unless account.crypto? %>
-            <% menu.with_item(
-                variant: "link",
-                text: "New transaction",
-                icon: "credit-card",
-                href: account.investment? ? new_trade_path(account_id: account.id) : new_transaction_path(account_id: account.id),
-                data: { turbo_frame: :modal }) %>
-          <% end %>
+              frame: :modal) %>
         <% end %>
-      <% end %>
+
+        <% if account.manual? && !account.crypto? %>
+          <%= render DS::Link.new(
+              text: "New transaction",
+              variant: "secondary",
+              icon: "plus",
+              href: account.investment? ? new_trade_path(account_id: account.id) : new_transaction_path(account_id: account.id),
+              frame: :modal) %>
+        <% end %>
+      </div>
     </div>
 
     <div>
@@ -46,7 +55,38 @@
                             "data-auto-submit-form-target": "auto" %>
             </div>
           </div>
+
+          <%# type: "button" is required -- a bare <button> inside this form defaults
+              to submit, which reloads the frame and closes the menu on open. %>
+          <%= render DS::Menu.new(variant: "button", no_padding: true) do |menu| %>
+            <% menu.with_button(
+              id: "entry-type-filter-button",
+              type: "button",
+              text: "Type",
+              variant: "outline",
+              icon: "list-filter"
+            ) %>
+
+            <% menu.with_custom_content do %>
+              <div class="w-48">
+                <%= render partial: "transactions/searches/filters/type_filter",
+                           locals: { form: form, types: types, auto_submit: true } %>
+              </div>
+            <% end %>
+          <% end %>
         </div>
+      <% end %>
+
+      <% if active_filters.any? %>
+        <ul id="<%= dom_id(account, "entry_search_filters") %>" class="flex items-center flex-wrap gap-2 mb-4">
+          <% active_filters.each do |filter| %>
+            <%= render partial: "transactions/searches/filters/badge",
+                       locals: { param_key: filter[:param_key],
+                                 param_value: filter[:param_value],
+                                 clear_path: filter[:clear_path],
+                                 clear_method: :get } %>
+          <% end %>
+        </ul>
       <% end %>
     </div>
 

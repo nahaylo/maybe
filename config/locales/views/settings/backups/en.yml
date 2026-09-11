@@ -1,0 +1,32 @@
+---
+en:
+  settings:
+    backups:
+      show:
+        location_title: Backup location
+        location_subtitle: Folder inside the backup mount that pg_dump writes to. The host folder behind the mount is set when the container starts and cannot be changed here.
+        folder_label: Folder
+        resolves_to: "Backups are written to:"
+        in_container: "(%{path} inside the container)"
+        not_mounted: "%{mount} is not a mounted host folder, so backups stay inside the container. Set BACKUP_HOST_ROOT in .env and run docker compose up -d."
+        save_path: Save location
+        not_writable: "Cannot write to %{path}."
+        missing_directory: "%{path} does not exist. Create it yourself, then reload this page."
+        blank_folder: A folder name is required. Backups cannot be written to the root of the backup mount.
+        not_persistent: "%{path} is inside the container and is deleted when it is rebuilt. Backups written here will be lost. Use one of: %{hints}"
+        no_hints: no mounted directory found
+        backups_title: Database backups
+        backups_subtitle: A full pg_dump of the database, in PostgreSQL custom format. Restore with pg_restore.
+        create: Create backup
+        download: Download
+        delete: Delete
+        empty: No backups yet.
+      create:
+        started: Backup started. Refresh in a moment to see it.
+      update:
+        updated: Backup location updated
+        blank_folder: A folder name is required. Backups cannot be written to the root of the backup mount.
+      destroy:
+        deleted: Backup deleted
+      ensure_admin:
+        not_authorized: You are not authorized to manage backups
