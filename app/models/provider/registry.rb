@@ -40,6 +40,17 @@ class Provider::Registry
         Provider::Synth.new(api_key)
       end
 
+      # Both need no API key, so they are always available. Frankfurter serves
+      # ECB rates (no UAH); NBU serves UAH pairs only. Together they cover every
+      # pair this app needs -- see ExchangeRate.provider_for.
+      def frankfurter
+        Provider::Frankfurter.new
+      end
+
+      def nbu
+        Provider::Nbu.new
+      end
+
       def plaid_us
         config = Rails.application.config.plaid
 
@@ -92,13 +103,14 @@ class Provider::Registry
     def available_providers
       case concept
       when :exchange_rates
-        %i[synth]
+        # Order matters: the first provider that supports a pair wins.
+        %i[frankfurter nbu synth]
       when :securities
         %i[synth]
       when :llm
         %i[openai]
       else
-        %i[synth plaid_us plaid_eu github openai]
+        %i[synth frankfurter nbu plaid_us plaid_eu github openai]
       end
     end
 end

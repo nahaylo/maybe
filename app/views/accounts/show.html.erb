@@ -4,5 +4,11 @@
       chart_period: @period,
       active_tab: @tab
     ) do |account_page| %>
-  <%= account_page.with_activity_feed(feed_data: @activity_feed_data, pagy: @pagy, search: @q[:search]) %>
+  <%= account_page.with_activity_feed(feed_data: @activity_feed_data, pagy: @pagy, search: @q[:search], types: @q[:types]) %>
+
+  <% if @account.vehicle? %>
+    <%= account_page.with_costs do %>
+      <%= render "vehicles/tabs/costs", account: @account, entries: @cost_entries, pagy: @costs_pagy %>
+    <% end %>
+  <% end %>
 <% end %>

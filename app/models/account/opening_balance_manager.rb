@@ -15,7 +15,7 @@ class Account::OpeningBalanceManager
 
     [
       account.entries.valuations.order(:date).first&.date,
-      account.entries.where.not(entryable_type: "Valuation").order(:date).first&.date&.prev_day
+      account.entries.where.not(entryable_type: %w[Valuation Mileage]).order(:date).first&.date&.prev_day
     ].compact.min || Date.current
   end
 

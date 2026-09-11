@@ -11,7 +11,11 @@
     <span class="mr-auto text-sm font-medium text-primary"><%= t(".other_accounts") %></span>
   </summary>
 
-  <div class="space-y-4 mt-4">
+  <%# One controller across all groups: `position` is a single per-family
+      sequence, so every reorder submits the full list in document order. %>
+  <div class="space-y-4 mt-4"
+       data-controller="sortable"
+       data-sortable-url-value="<%= reorder_accounts_path %>">
     <%= render "accounts/index/account_groups", accounts: accounts %>
   </div>
 </details>

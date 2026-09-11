@@ -1,0 +1,50 @@
+<%# locals: (account:, entries:, pagy:) %>
+
+<%# Spending attributed to this vehicle (Transaction#attributed_account) plus its
+    fuel category, paid from other accounts. Rows are the global transaction
+    rows so the paying account shows; selecting rows opens the same bulk edit,
+    which is how a misattributed row gets fixed. %>
+<div id="<%= dom_id(account, "costs") %>"
+     class="bg-container p-5 shadow-border-xs rounded-xl"
+     data-controller="bulk-select"
+     data-bulk-select-singular-label-value="transaction"
+     data-bulk-select-plural-label-value="transactions">
+  <div class="flex items-center justify-between mb-4">
+    <div>
+      <h2 class="font-medium text-lg"><%= t(".title") %></h2>
+      <p class="text-secondary text-sm">
+        <%= t(".summary", count: number_with_delimiter(pagy.count), total: format_money(account.vehicle.running_costs)) %>
+      </p>
+    </div>
+  </div>
+
+  <div id="entry-selection-bar" data-bulk-select-target="selectionBar" class="flex justify-center hidden">
+    <%= render "transactions/selection_bar" %>
+  </div>
+
+  <% if pagy.count > 0 %>
+    <div class="grid-cols-12 bg-container-inset rounded-xl px-5 py-3 text-xs uppercase font-medium text-secondary items-center mb-4 hidden md:grid">
+      <div class="pl-0.5 col-span-8 flex items-center gap-4">
+        <%= check_box_tag "selection_entry",
+                          class: "checkbox checkbox--light",
+                          data: { action: "bulk-select#togglePageSelection" } %>
+        <p><%= t(".transaction") %></p>
+      </div>
+
+      <p class="col-span-2">category</p>
+      <p class="col-span-2 justify-self-end"><%= t(".amount") %></p>
+    </div>
+
+    <div class="space-y-6">
+      <%= entries_by_date(entries.to_a, totals: true) do |date_entries| %>
+        <%= render date_entries %>
+      <% end %>
+    </div>
+
+    <div class="pt-4">
+      <%= render "shared/pagination", pagy: pagy %>
+    </div>
+  <% else %>
+    <p class="text-secondary text-sm p-4"><%= t(".empty") %></p>
+  <% end %>
+</div>

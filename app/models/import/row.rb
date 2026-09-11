@@ -7,6 +7,7 @@ class Import::Row < ApplicationRecord
   validate :date_valid
   validate :required_columns
   validate :currency_is_valid
+  validate :quantity_and_unit_valid
 
   scope :ordered, -> { order(:id) }
 
@@ -20,6 +21,18 @@ class Import::Row < ApplicationRecord
 
   def date_iso
     Date.strptime(date, import.date_format).iso8601
+  end
+
+  # Guarded on the import type: TradeImport legitimately uses a negative qty to
+  # mean a sell, and only transaction imports map a unit column.
+  def quantity_and_unit_valid
+    return unless import.column_keys.include?(:unit)
+
+    errors.add(:qty, "must be a positive number") if qty.present? && qty.to_d <= 0
+
+    if unit.present? && !Transaction::UNITS.key?(unit.downcase)
+      errors.add(:unit, "must be one of: #{Transaction::UNITS.keys.join(", ")}")
+    end
   end
 
   def signed_amount

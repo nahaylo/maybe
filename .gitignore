@@ -68,7 +68,8 @@ coverage
 # Ignore node related files
 node_modules
 
-compose.yml
+# compose.yml is tracked -- it is this project's actual Docker setup.
+# Local secrets live in .env, which stays ignored (see below).
 
 plaid_test_accounts/
 

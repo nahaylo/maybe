@@ -1,7 +1,38 @@
 class Account < ApplicationRecord
   include AASM, Syncable, Monetizable, Chartable, Linkable, Enrichable, Anchorable, Reconcileable
 
+  SEPARATOR = " · ".freeze
+
+  # Icons a user can pick for an account, from the vendored lucide set. Ordered
+  # banking-first, since that is what most accounts are. A nil pick falls back
+  # to the accountable type's own icon -- see #icon.
+  ICON_CODES = %w[
+    landmark building-2 vault wallet wallet-minimal wallet-cards banknote coins
+    piggy-bank credit-card hand-coins badge-dollar-sign circle-dollar-sign receipt
+    chart-line chart-candlestick chart-pie trending-up bitcoin gem briefcase target rocket
+    house building car-front bike bus train-front plane ship fuel wrench hammer
+    smartphone laptop monitor shield star heart gift graduation-cap baby dog cat
+    users user id-card key lock umbrella sprout leaf trees sun zap plug droplet
+    flame cloud globe flag bookmark tag utensils shopping-cart pill dumbbell
+    ticket music gamepad-2 book
+  ].freeze
+
+  # Colors a user can pick for an account: the design system's 500-level ramp
+  # (maybe-design-system.css), which is where most of the Accountable defaults
+  # already come from. A nil pick falls back to the type's own color -- see #color.
+  COLORS = %w[
+    #737373 #F13636 #FF4405 #F79009 #12B76A #06AED4
+    #2E90FA #6172F3 #875BF7 #D444F1 #F23E94
+  ].freeze
+
+  # "" comes back from each picker's "use the default" radio; store it as NULL so
+  # #icon and #color's presence checks are the only place the fallback lives.
+  normalizes :lucide_icon, with: ->(code) { code.presence }
+  normalizes :custom_color, with: ->(hex) { hex.presence }
+
   validates :name, :balance, :currency, presence: true
+  validates :lucide_icon, inclusion: { in: ICON_CODES }, allow_nil: true
+  validates :custom_color, inclusion: { in: COLORS }, allow_nil: true
 
   belongs_to :family
   belongs_to :import, optional: true
@@ -11,6 +42,8 @@ class Account < ApplicationRecord
   has_many :transactions, through: :entries, source: :entryable, source_type: "Transaction"
   has_many :valuations, through: :entries, source: :entryable, source_type: "Valuation"
   has_many :trades, through: :entries, source: :entryable, source_type: "Trade"
+  # Spending elsewhere that served this asset (see Transaction#attributed_account).
+  has_many :attributed_transactions, class_name: "Transaction", foreign_key: :attributed_account_id, dependent: :nullify
   has_many :holdings, dependent: :destroy
   has_many :balances, dependent: :destroy
 
@@ -21,10 +54,31 @@ class Account < ApplicationRecord
   scope :visible, -> { where(status: [ "draft", "active" ]) }
   scope :assets, -> { where(classification: "asset") }
   scope :liabilities, -> { where(classification: "liability") }
-  scope :alphabetically, -> { order(:name) }
+
+  # The order accounts are listed in everywhere. `position` is user-controlled
+  # (drag to reorder on /accounts); :name only breaks ties for rows that have no
+  # position yet.
+  scope :ordered, -> { order(:position, :name) }
+
+  scope :alphabetically, -> {
+    order(
+      Arel.sql(ActiveRecord::Base.sanitize_sql_array([ <<~SQL.squish, SEPARATOR ])) # rubocop:disable Rails/RelationExplicitOrder
+        split_part(accounts.name, ?, 1) ASC,
+        (accounts.currency <> (SELECT families.currency FROM families WHERE families.id = accounts.family_id)) ASC,
+        accounts.currency ASC,
+        accounts.name ASC
+      SQL
+    )
+  }
   scope :manual, -> { where(plaid_account_id: nil) }
+  # Assets that spending can be attributed to.
+  scope :attributable, -> { visible.where(accountable_type: %w[Vehicle Property]) }
 
   has_one_attached :logo
+
+  # New accounts land at the end of the family's manual order rather than at a
+  # NULL position, which would sort them last-but-untracked.
+  before_create :assign_default_position
 
   delegated_type :accountable, types: Accountable::TYPES, dependent: :destroy
 
@@ -71,6 +125,24 @@ class Account < ApplicationRecord
       account.sync_later
       account
     end
+  end
+
+  # The glyph to draw for this account: the user's pick, else the accountable
+  # type's default (Depository -> "landmark", Vehicle -> "car-front").
+  def icon
+    lucide_icon.presence || accountable.icon
+  end
+
+  # The hex to tint this account with: the user's pick, else the accountable
+  # type's default (Depository -> "#875BF7").
+  #
+  # The raw pick lives in `custom_color` rather than a `color` column on purpose.
+  # Naming the column `color` would force this method to shadow the attribute
+  # reader, and `validates :color, inclusion:` reads through the reader -- so
+  # every account with no pick would validate its *type default* against COLORS
+  # and fail.
+  def color
+    custom_color.presence || accountable.color
   end
 
   def institution_domain
@@ -133,6 +205,31 @@ class Account < ApplicationRecord
   end
 
   # Get short version of the subtype label
+  # Moves an account to a different accountable type. Nothing real lives on the
+  # accountable -- entries, balances and holdings all belong to the account -- so
+  # this swaps the type row and keeps the entire history.
+  #
+  # Subtype is cleared because subtypes are defined per accountable type, and a
+  # value from the old type would silently fall back to the type's display name.
+  def convert_to!(new_accountable_type)
+    raise ArgumentError, "Unknown account type: #{new_accountable_type}" unless Accountable::TYPES.include?(new_accountable_type)
+    raise ArgumentError, "Cannot change the type of a linked account" if linked?
+    return false if accountable_type == new_accountable_type
+
+    previous = accountable
+
+    transaction do
+      update!(accountable: new_accountable_type.constantize.new, subtype: nil)
+      previous.destroy!
+    end
+
+    true
+  end
+
+  def convertible?
+    !linked?
+  end
+
   def short_subtype_label
     accountable_class.short_subtype_label_for(subtype) || accountable_class.display_name
   end
@@ -150,7 +247,7 @@ class Account < ApplicationRecord
   # "Investment" = A mix of both, including brokerage cash (liquid) and holdings (illiquid)
   def balance_type
     case accountable_type
-    when "Depository", "CreditCard"
+    when "Depository", "Deposit", "Business", "CreditCard"
       :cash
     when "Property", "Vehicle", "OtherAsset", "Loan", "OtherLiability"
       :non_cash
@@ -160,4 +257,9 @@ class Account < ApplicationRecord
       raise "Unknown account type: #{accountable_type}"
     end
   end
+
+  private
+    def assign_default_position
+      self.position ||= (family&.accounts&.maximum(:position) || 0) + 1
+    end
 end

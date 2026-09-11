@@ -1,0 +1,7 @@
+---
+en:
+  deposits:
+    edit:
+      edit: Edit %{account}
+    new:
+      title: Enter deposit details

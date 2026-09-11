@@ -1,0 +1,472 @@
+---
+http_interactions:
+- request:
+    method: get
+    uri: https://bank.gov.ua/NBUStatService/v1/statdirectory/exchange?date=20240101&json=&valcode=USD
+    body:
+      encoding: US-ASCII
+      string: ''
+    headers:
+      User-Agent:
+      - Faraday v2.13.2
+      Accept-Encoding:
+      - gzip;q=1.0,deflate;q=0.6,identity;q=0.3
+      Accept:
+      - "*/*"
+  response:
+    status:
+      code: 200
+      message: OK
+    headers:
+      Date:
+      - Tue, 25 Aug 2026 12:58:43 GMT
+      Content-Type:
+      - application/json; charset=utf-8
+      Transfer-Encoding:
+      - chunked
+      Connection:
+      - keep-alive
+      Server:
+      - cloudflare
+      Nel:
+      - '{"report_to":"cf-nel","success_fraction":0.01,"max_age":604800}'
+      Vary:
+      - Accept-Encoding
+      X-Powered-By:
+      - Servlet/3.1
+      Statusrequest:
+      - OK+%C2%E8%EA%EE%ED%E0%ED%EE
+      Filename:
+      - exchange
+      X-Xss-Protection:
+      - '1'
+      X-Frame-Options:
+      - SAMEORIGIN
+      X-Content-Type-Options:
+      - nosniff
+      Content-Language:
+      - uk-UA
+      X-Cache-Status:
+      - MISS
+      Access-Control-Allow-Origin:
+      - "*"
+      X-Request-Id:
+      - a9311fe782a68c8fe82209d7b3acb7ce
+      Cf-Cache-Status:
+      - DYNAMIC
+      Set-Cookie:
+      - __cf_bm=d0.xpXqltBUo4Lc_OF5i73Ph0rLE9dOs.FycrU3N_wE-1787662723.0800683-1.0.1.1-Vafw.E7dNzNFtqoJdg4SMdHUYaEg6ML4zZxsn0zkBJXnZsAkX3PqR9QBoX_NyqQIfiuGIfZgjdoSM_8vHv2_qxWwrG_y9DTFPuAgEnAoWT.KRvAvFMfZIfyCUhw6JFECylDlVate4GnjuYR2DR5rOA;
+        HttpOnly; SameSite=None; Secure; Path=/; Domain=bank.gov.ua; Expires=Tue,
+        25 Aug 2026 13:28:43 GMT
+      Report-To:
+      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=ERJiycdnfiQQ5ofmEROEQv6EudjKHfnq1Ph1hZw%2F16uiCY8%2B9rICToJ9CxsQj1lVazdg0%2F7celXsQQURLdlW%2FOzrjxv6kl3c1Vh6EaAD56WLE%2BA2Is1n9h8Le%2FBY"}]}'
+      Cf-Ray:
+      - a30ac5133f5a570e-WAW
+    body:
+      encoding: ASCII-8BIT
+      string: !binary |-
+        Ww0KeyANCiJyMDMwIjo4NDAsInR4dCI6ItCU0L7Qu9Cw0YAg0KHQqNCQIiwicmF0ZSI6MzguMDAyLCJjYyI6IlVTRCIsImV4Y2hhbmdlZGF0ZSI6IjAxLjAxLjIwMjQiLCJzcGVjaWFsIjpudWxsDQogfQ0KXQ0K
+  recorded_at: Tue, 25 Aug 2026 12:58:43 GMT
+- request:
+    method: get
+    uri: https://bank.gov.ua/NBUStatService/v1/statdirectory/exchange?date=20240102&json=&valcode=USD
+    body:
+      encoding: US-ASCII
+      string: ''
+    headers:
+      User-Agent:
+      - Faraday v2.13.2
+      Accept-Encoding:
+      - gzip;q=1.0,deflate;q=0.6,identity;q=0.3
+      Accept:
+      - "*/*"
+  response:
+    status:
+      code: 200
+      message: OK
+    headers:
+      Date:
+      - Tue, 25 Aug 2026 12:58:43 GMT
+      Content-Type:
+      - application/json; charset=utf-8
+      Transfer-Encoding:
+      - chunked
+      Connection:
+      - keep-alive
+      Server:
+      - cloudflare
+      Nel:
+      - '{"report_to":"cf-nel","success_fraction":0.01,"max_age":604800}'
+      Vary:
+      - Accept-Encoding
+      X-Powered-By:
+      - Servlet/3.1
+      Statusrequest:
+      - OK+%C2%E8%EA%EE%ED%E0%ED%EE
+      Filename:
+      - exchange
+      X-Xss-Protection:
+      - '1'
+      X-Frame-Options:
+      - SAMEORIGIN
+      X-Content-Type-Options:
+      - nosniff
+      Content-Language:
+      - uk-UA
+      X-Cache-Status:
+      - MISS
+      Access-Control-Allow-Origin:
+      - "*"
+      X-Request-Id:
+      - 8eaf908ecf27134e7792f24e58125fe5
+      Cf-Cache-Status:
+      - DYNAMIC
+      Set-Cookie:
+      - __cf_bm=15u7VPn2hHg3yvv7HWaN.yY4y8q5nG12K2DBZhNiNQs-1787662723.2359865-1.0.1.1-mQGnALdcHIzMNcn4ELF3O7DRvqa9njMXseCmeoTxiV.CCveU1zFpOIDzUzCTL.jGewvzqUMEZ9eTziyDVoNdGXUS5ZyoYmGkx4UZ8seY3cbM0aOqvDg90_jZzWmUmXeXkPsKkkgrmtfcCQaW65CAHw;
+        HttpOnly; SameSite=None; Secure; Path=/; Domain=bank.gov.ua; Expires=Tue,
+        25 Aug 2026 13:28:43 GMT
+      Report-To:
+      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=e2AqRxw7YuECLfn2b9BZAyAH61TlvFHPTSW%2BaMsF3dVXTAOEWh2MHxhpEGtwFXF%2FptQGHHHa3W5tWF0vg3vM3hL8TABewfMWwhkT8t4pzunn7scf56km%2BFQKCAGi"}]}'
+      Cf-Ray:
+      - a30ac5143f090282-WAW
+    body:
+      encoding: ASCII-8BIT
+      string: !binary |-
+        Ww0KeyANCiJyMDMwIjo4NDAsInR4dCI6ItCU0L7Qu9Cw0YAg0KHQqNCQIiwicmF0ZSI6MzguMDE0NCwiY2MiOiJVU0QiLCJleGNoYW5nZWRhdGUiOiIwMi4wMS4yMDI0Iiwic3BlY2lhbCI6bnVsbA0KIH0NCl0NCg==
+  recorded_at: Tue, 25 Aug 2026 12:58:43 GMT
+- request:
+    method: get
+    uri: https://bank.gov.ua/NBUStatService/v1/statdirectory/exchange?date=20240103&json=&valcode=USD
+    body:
+      encoding: US-ASCII
+      string: ''
+    headers:
+      User-Agent:
+      - Faraday v2.13.2
+      Accept-Encoding:
+      - gzip;q=1.0,deflate;q=0.6,identity;q=0.3
+      Accept:
+      - "*/*"
+  response:
+    status:
+      code: 200
+      message: OK
+    headers:
+      Date:
+      - Tue, 25 Aug 2026 12:58:43 GMT
+      Content-Type:
+      - application/json; charset=utf-8
+      Transfer-Encoding:
+      - chunked
+      Connection:
+      - keep-alive
+      Server:
+      - cloudflare
+      Nel:
+      - '{"report_to":"cf-nel","success_fraction":0.01,"max_age":604800}'
+      Vary:
+      - Accept-Encoding
+      X-Powered-By:
+      - Servlet/3.1
+      Statusrequest:
+      - OK+%C2%E8%EA%EE%ED%E0%ED%EE
+      Filename:
+      - exchange
+      X-Xss-Protection:
+      - '1'
+      X-Frame-Options:
+      - SAMEORIGIN
+      X-Content-Type-Options:
+      - nosniff
+      Content-Language:
+      - uk-UA
+      X-Cache-Status:
+      - MISS
+      Access-Control-Allow-Origin:
+      - "*"
+      X-Request-Id:
+      - c8c2a701a3de80ac1caf8193a9c6fef7
+      Cf-Cache-Status:
+      - DYNAMIC
+      Set-Cookie:
+      - __cf_bm=CghTUWjmLwqoI3qM0o21FcKBIjBX9qNQeEI9IGLGKwE-1787662723.4141872-1.0.1.1-Vg2WjeGZ219jjc12BqjIT9EM.FUeDM5BpsHPFRk52fS4Hhd0Wa_rwd.pzMzI2h5WNEfqEecEC.6AL.0b.r5gVBtzcPnqmxERpEYcJ_Fv3x6SCG6v8utCNDsxjrQ8dxII1zj81on3Blsg_89nV_6QUA;
+        HttpOnly; SameSite=None; Secure; Path=/; Domain=bank.gov.ua; Expires=Tue,
+        25 Aug 2026 13:28:43 GMT
+      Report-To:
+      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=8mIM24Rru5ewL%2Fl21fF2Q%2FtI%2B%2BgWGc4mGOLQj30Ky8kauaZo6vj8XFiBYNoE3tYi8VD1DJrH0TQqp%2FTFkfiB4I9W8H%2BwAt7c27DPDRBwd8miEaKvY1w%2BwckYtYyJ"}]}'
+      Cf-Ray:
+      - a30ac5155c000254-WAW
+    body:
+      encoding: ASCII-8BIT
+      string: !binary |-
+        Ww0KeyANCiJyMDMwIjo4NDAsInR4dCI6ItCU0L7Qu9Cw0YAg0KHQqNCQIiwicmF0ZSI6MzguMDgzOSwiY2MiOiJVU0QiLCJleGNoYW5nZWRhdGUiOiIwMy4wMS4yMDI0Iiwic3BlY2lhbCI6bnVsbA0KIH0NCl0NCg==
+  recorded_at: Tue, 25 Aug 2026 12:58:43 GMT
+- request:
+    method: get
+    uri: https://bank.gov.ua/NBUStatService/v1/statdirectory/exchange?date=20240104&json=&valcode=USD
+    body:
+      encoding: US-ASCII
+      string: ''
+    headers:
+      User-Agent:
+      - Faraday v2.13.2
+      Accept-Encoding:
+      - gzip;q=1.0,deflate;q=0.6,identity;q=0.3
+      Accept:
+      - "*/*"
+  response:
+    status:
+      code: 200
+      message: OK
+    headers:
+      Date:
+      - Tue, 25 Aug 2026 12:58:43 GMT
+      Content-Type:
+      - application/json; charset=utf-8
+      Transfer-Encoding:
+      - chunked
+      Connection:
+      - keep-alive
+      Server:
+      - cloudflare
+      Nel:
+      - '{"report_to":"cf-nel","success_fraction":0.01,"max_age":604800}'
+      Vary:
+      - Accept-Encoding
+      X-Powered-By:
+      - Servlet/3.1
+      Statusrequest:
+      - OK+%C2%E8%EA%EE%ED%E0%ED%EE
+      Filename:
+      - exchange
+      X-Xss-Protection:
+      - '1'
+      X-Frame-Options:
+      - SAMEORIGIN
+      X-Content-Type-Options:
+      - nosniff
+      Content-Language:
+      - uk-UA
+      X-Cache-Status:
+      - MISS
+      Access-Control-Allow-Origin:
+      - "*"
+      X-Request-Id:
+      - e16968aeb32e4f951414d9e1f94a276c
+      Cf-Cache-Status:
+      - DYNAMIC
+      Set-Cookie:
+      - __cf_bm=fqKKXbuPzGwywrlGt96ynZiK_WqVzECXI61pbFeBn7s-1787662723.5775054-1.0.1.1-kEOipWSHMC.pBleGDVU56I9px5COzDt2UK8HZC9v.5E7RU4zRSiUb3ezeYDm0CGT0bWmVKA1i_SWMWr2oMVyfiywo6S7s5n.hReJIE38X3R1IAsNQjFCI3ciiKPwNage.PLv8b.ELUcSFsA2w7B8Lg;
+        HttpOnly; SameSite=None; Secure; Path=/; Domain=bank.gov.ua; Expires=Tue,
+        25 Aug 2026 13:28:43 GMT
+      Report-To:
+      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=2%2FPdgfBEcsUlyxvVSckk0jDrK84gAKHLdzB2x%2FDzhYb7arWGhSjZ0Zi2B%2FkLYd1q%2BvH5ZMF%2Bzfs7BgLw5Xyt868bRmySA068SSOdtvswJKfXx4RObgm2oAG04y2%2B"}]}'
+      Cf-Ray:
+      - a30ac5165cb2028c-WAW
+    body:
+      encoding: ASCII-8BIT
+      string: !binary |-
+        Ww0KeyANCiJyMDMwIjo4NDAsInR4dCI6ItCU0L7Qu9Cw0YAg0KHQqNCQIiwicmF0ZSI6MzguMTE1OSwiY2MiOiJVU0QiLCJleGNoYW5nZWRhdGUiOiIwNC4wMS4yMDI0Iiwic3BlY2lhbCI6bnVsbA0KIH0NCl0NCg==
+  recorded_at: Tue, 25 Aug 2026 12:58:43 GMT
+- request:
+    method: get
+    uri: https://bank.gov.ua/NBUStatService/v1/statdirectory/exchange?date=20240105&json=&valcode=USD
+    body:
+      encoding: US-ASCII
+      string: ''
+    headers:
+      User-Agent:
+      - Faraday v2.13.2
+      Accept-Encoding:
+      - gzip;q=1.0,deflate;q=0.6,identity;q=0.3
+      Accept:
+      - "*/*"
+  response:
+    status:
+      code: 200
+      message: OK
+    headers:
+      Date:
+      - Tue, 25 Aug 2026 12:58:43 GMT
+      Content-Type:
+      - application/json; charset=utf-8
+      Transfer-Encoding:
+      - chunked
+      Connection:
+      - keep-alive
+      Server:
+      - cloudflare
+      Nel:
+      - '{"report_to":"cf-nel","success_fraction":0.01,"max_age":604800}'
+      Vary:
+      - Accept-Encoding
+      X-Powered-By:
+      - Servlet/3.1
+      Statusrequest:
+      - OK+%C2%E8%EA%EE%ED%E0%ED%EE
+      Filename:
+      - exchange
+      X-Xss-Protection:
+      - '1'
+      X-Frame-Options:
+      - SAMEORIGIN
+      X-Content-Type-Options:
+      - nosniff
+      Content-Language:
+      - uk-UA
+      X-Cache-Status:
+      - MISS
+      Access-Control-Allow-Origin:
+      - "*"
+      X-Request-Id:
+      - 2e6010f8914e5afb45982ba3c2cde0fa
+      Cf-Cache-Status:
+      - DYNAMIC
+      Set-Cookie:
+      - __cf_bm=XdJN.nQ897nwzkTw9hGC4IF5sJxgWgremOqQtvMLXpA-1787662723.7527814-1.0.1.1-k0G15q8CRNecJxmL7MXPfd0eZ80LmjrIYBfB_TxtmuR7AP3wsSrgq4GGC6wQ1t_m_uL7CXM7.FDeyL0Aua8KL_HpBqG6KSR6xyBAOzQjh6J6vIdhlVl0CZl2TrsohS.JtleGDgKGmWVsXwVbCDuhdg;
+        HttpOnly; SameSite=None; Secure; Path=/; Domain=bank.gov.ua; Expires=Tue,
+        25 Aug 2026 13:28:43 GMT
+      Report-To:
+      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=l8z8ughc6XbJrvJrsc7SAj8wxqezFLEFpoGqMS7sxZFQxf9CwPHs0PKAXxVD34Mxre4SImFRc6FyXOc53gsZdT%2Bo70jvnW%2FAU7r%2BL0qPpaMsW8grZQAnwXQKlhQX"}]}'
+      Cf-Ray:
+      - a30ac5177ff421df-WAW
+    body:
+      encoding: ASCII-8BIT
+      string: !binary |-
+        Ww0KeyANCiJyMDMwIjo4NDAsInR4dCI6ItCU0L7Qu9Cw0YAg0KHQqNCQIiwicmF0ZSI6MzguMDQxMiwiY2MiOiJVU0QiLCJleGNoYW5nZWRhdGUiOiIwNS4wMS4yMDI0Iiwic3BlY2lhbCI6bnVsbA0KIH0NCl0NCg==
+  recorded_at: Tue, 25 Aug 2026 12:58:43 GMT
+- request:
+    method: get
+    uri: https://bank.gov.ua/NBUStatService/v1/statdirectory/exchange?date=20240106&json=&valcode=USD
+    body:
+      encoding: US-ASCII
+      string: ''
+    headers:
+      User-Agent:
+      - Faraday v2.13.2
+      Accept-Encoding:
+      - gzip;q=1.0,deflate;q=0.6,identity;q=0.3
+      Accept:
+      - "*/*"
+  response:
+    status:
+      code: 200
+      message: OK
+    headers:
+      Date:
+      - Tue, 25 Aug 2026 12:58:44 GMT
+      Content-Type:
+      - application/json; charset=utf-8
+      Transfer-Encoding:
+      - chunked
+      Connection:
+      - keep-alive
+      Server:
+      - cloudflare
+      Nel:
+      - '{"report_to":"cf-nel","success_fraction":0.01,"max_age":604800}'
+      Vary:
+      - Accept-Encoding
+      X-Powered-By:
+      - Servlet/3.1
+      Statusrequest:
+      - OK+%C2%E8%EA%EE%ED%E0%ED%EE
+      Filename:
+      - exchange
+      X-Xss-Protection:
+      - '1'
+      X-Frame-Options:
+      - SAMEORIGIN
+      X-Content-Type-Options:
+      - nosniff
+      Content-Language:
+      - uk-UA
+      X-Cache-Status:
+      - MISS
+      Access-Control-Allow-Origin:
+      - "*"
+      X-Request-Id:
+      - dca2c6ce4cbd48c0523434fda2225b3e
+      Cf-Cache-Status:
+      - DYNAMIC
+      Set-Cookie:
+      - __cf_bm=xohhEDwZ5jcdDa3_q31bp8LR5eCTTp8jYv6RiPUdNn0-1787662723.911773-1.0.1.1-_AF.uEN8xEnbEbqmdw83XpgtmCprwhqjeOamBsuPb28qE.JwlHYKWSK49eD9nI.nTAqRxvc8SE64CLv3ctGsQG1XJ4G_IaH.6zdVwQhTsGkbrEgqkm6zn1HBRhc7V2E1qx41hKPibktTBcyI1wpUjw;
+        HttpOnly; SameSite=None; Secure; Path=/; Domain=bank.gov.ua; Expires=Tue,
+        25 Aug 2026 13:28:44 GMT
+      Report-To:
+      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=XHd0%2Fyx0Ov1yMZJID%2BEJU2i0U%2BxVbHp7BD9l7m5oqrGIYZ8lpuPN0jVqukaX8D1tWpumQI35YjyVFQYGIQ%2B6oEUXkK3GfLddxUQTu4nv43x0%2FwaDTjpTh%2F4LQEgq"}]}'
+      Cf-Ray:
+      - a30ac5187e9223b0-WAW
+    body:
+      encoding: ASCII-8BIT
+      string: !binary |-
+        Ww0KeyANCiJyMDMwIjo4NDAsInR4dCI6ItCU0L7Qu9Cw0YAg0KHQqNCQIiwicmF0ZSI6MzguMDQxMiwiY2MiOiJVU0QiLCJleGNoYW5nZWRhdGUiOiIwNi4wMS4yMDI0Iiwic3BlY2lhbCI6bnVsbA0KIH0NCl0NCg==
+  recorded_at: Tue, 25 Aug 2026 12:58:43 GMT
+- request:
+    method: get
+    uri: https://bank.gov.ua/NBUStatService/v1/statdirectory/exchange?date=20240107&json=&valcode=USD
+    body:
+      encoding: US-ASCII
+      string: ''
+    headers:
+      User-Agent:
+      - Faraday v2.13.2
+      Accept-Encoding:
+      - gzip;q=1.0,deflate;q=0.6,identity;q=0.3
+      Accept:
+      - "*/*"
+  response:
+    status:
+      code: 200
+      message: OK
+    headers:
+      Date:
+      - Tue, 25 Aug 2026 12:58:44 GMT
+      Content-Type:
+      - application/json; charset=utf-8
+      Transfer-Encoding:
+      - chunked
+      Connection:
+      - keep-alive
+      Server:
+      - cloudflare
+      Nel:
+      - '{"report_to":"cf-nel","success_fraction":0.01,"max_age":604800}'
+      Vary:
+      - Accept-Encoding
+      X-Powered-By:
+      - Servlet/3.1
+      Statusrequest:
+      - OK+%C2%E8%EA%EE%ED%E0%ED%EE
+      Filename:
+      - exchange
+      X-Xss-Protection:
+      - '1'
+      X-Frame-Options:
+      - SAMEORIGIN
+      X-Content-Type-Options:
+      - nosniff
+      Content-Language:
+      - uk-UA
+      X-Cache-Status:
+      - MISS
+      Access-Control-Allow-Origin:
+      - "*"
+      X-Request-Id:
+      - 8b29dd81837e45f2a5f58f591c185916
+      Cf-Cache-Status:
+      - DYNAMIC
+      Set-Cookie:
+      - __cf_bm=pOrD4YiVIzAPJ7AY3YnNkzBn0Ka3iqvkc7QuqhHkkOA-1787662724.0683181-1.0.1.1-EMPTc_YpxA86V4lYcXcMeDwMuwVpWl2C1pDhE_fW1bxeBIhjpauHE_H__P.Qec.PRks_5WfklO83fGBasEVkPkBV5kgmdh8wBcs3kR_DCWw8SlfIrk46whxTHWK09T7bNprD896Sy9diTLsbgVjODw;
+        HttpOnly; SameSite=None; Secure; Path=/; Domain=bank.gov.ua; Expires=Tue,
+        25 Aug 2026 13:28:44 GMT
+      Report-To:
+      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=qFM3sJQ01wmzcPuWq%2Bs5UzKEEl0Wqfzs7UyFCEL71LPsVV2F2MQIP%2FRT9sddkSrNBM4cxuFVBp78UltCxDis3u%2Bq5qj0z4U62LlX%2FIbV7uhtTjjdrhqr1JWHigX9"}]}'
+      Cf-Ray:
+      - a30ac519696c95aa-WAW
+    body:
+      encoding: ASCII-8BIT
+      string: !binary |-
+        Ww0KeyANCiJyMDMwIjo4NDAsInR4dCI6ItCU0L7Qu9Cw0YAg0KHQqNCQIiwicmF0ZSI6MzguMDQxMiwiY2MiOiJVU0QiLCJleGNoYW5nZWRhdGUiOiIwNy4wMS4yMDI0Iiwic3BlY2lhbCI6bnVsbA0KIH0NCl0NCg==
+  recorded_at: Tue, 25 Aug 2026 12:58:44 GMT
+recorded_with: VCR 6.3.1

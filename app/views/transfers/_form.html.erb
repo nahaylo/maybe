@@ -1,8 +1,10 @@
+<% account_options = Current.family.accounts.manual.ordered.map { |account| [ account.name, account.id, { "data-currency" => account.currency } ] } %>
+
 <%= styled_form_with model: transfer, class: "space-y-4", data: { turbo_frame: "_top", controller: "transfer-form" } do |f| %>
   <% if transfer.errors.present? %>
     <div class="text-destructive flex items-center gap-2">
       <%= icon "circle-alert", size: "sm" %>
-      <p class="text-sm"><%= @transfer.errors.full_messages.to_sentence %></p>
+      <p class="text-sm"><%= transfer.errors.full_messages.to_sentence %></p>
     </div>
   <% end %>
 
@@ -11,10 +13,41 @@
   </section>
 
   <section class="space-y-2">
-    <%= f.collection_select :from_account_id, Current.family.accounts.manual.alphabetically, :id, :name, { prompt: t(".select_account"), label: t(".from") }, required: true %>
-    <%= f.collection_select :to_account_id, Current.family.accounts.manual.alphabetically, :id, :name, { prompt: t(".select_account"), label: t(".to") }, required: true %>
-    <%= f.number_field :amount, label: t(".amount"), required: true, min: 0, placeholder: "100", step: 0.00000001 %>
-    <%= f.date_field :date, value: transfer.inflow_transaction&.entry&.date || Date.current, label: t(".date"), required: true, max: Date.current %>
+    <%= f.select :from_account_id,
+        options_for_select(account_options, params.dig(:transfer, :from_account_id)),
+        { prompt: t(".select_account"), label: t(".from"), required: true },
+        { data: { transfer_form_target: "fromAccount", action: "change->transfer-form#refresh" } } %>
+
+    <%= f.select :to_account_id,
+        options_for_select(account_options, params.dig(:transfer, :to_account_id)),
+        { prompt: t(".select_account"), label: t(".to"), required: true },
+        { data: { transfer_form_target: "toAccount", action: "change->transfer-form#refresh" } } %>
+
+    <%= f.number_field :amount, label: t(".amount"), required: true, min: 0, placeholder: "100", step: 0.00000001,
+        value: params.dig(:transfer, :amount),
+        data: { transfer_form_target: "amount", action: "input->transfer-form#refresh" } %>
+
+    <%# Shown only for cross-currency transfers. Rendered hidden and disabled so a %>
+    <%# stale value can never be submitted, and so it fails safe when JS is absent. %>
+    <div class="hidden space-y-1" data-transfer-form-target="destinationSection">
+      <%= f.number_field :destination_amount, label: t(".destination_amount"), min: 0, step: "any", disabled: true,
+          value: params.dig(:transfer, :destination_amount),
+          data: { transfer_form_target: "destinationAmount" } %>
+      <div class="flex items-center gap-2">
+        <p class="text-xs text-secondary" data-transfer-form-target="rateNote"></p>
+        <%# type="button" is essential -- the default would submit the form %>
+        <button type="button"
+                class="hidden text-xs font-medium text-primary underline whitespace-nowrap"
+                data-transfer-form-target="fetchButton"
+                data-action="transfer-form#fetchRate">
+          Fetch rate
+        </button>
+      </div>
+    </div>
+
+    <%= f.date_field :date, value: params.dig(:transfer, :date) || transfer.inflow_transaction&.entry&.date || Date.current,
+        label: t(".date"), required: true, max: Date.current,
+        data: { transfer_form_target: "date", action: "change->transfer-form#refresh" } %>
   </section>
 
   <section>

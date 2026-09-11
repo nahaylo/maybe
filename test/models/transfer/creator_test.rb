@@ -40,34 +40,106 @@ class Transfer::CreatorTest < ActiveSupport::TestCase
     assert_equal "Transfer from #{@source_account.name}", inflow.entry.name
   end
 
-  test "creates multi-currency transfer" do
-    # Use crypto account which has USD currency but different from source
-    crypto_account = accounts(:crypto)
-
-    creator = Transfer::Creator.new(
-      family: @family,
-      source_account_id: @source_account.id,
-      destination_account_id: crypto_account.id,
-      date: @date,
-      amount: @amount
-    )
-
-    transfer = creator.create
+  # Replaces a former "creates multi-currency transfer" test that used the crypto
+  # fixture -- which is USD, so it never exercised a conversion at all.
+  test "converts the destination leg using the stored exchange rate" do
+    usd_to_eur_rate
+    transfer = create_transfer(destination_account_id: eur_account.id)
 
     assert transfer.persisted?
-    assert transfer.regular_transfer?
-    assert_equal "transfer", transfer.transfer_type
+    assert_equal 100, transfer.outflow_transaction.entry.amount
+    assert_equal "USD", transfer.outflow_transaction.entry.currency
+    assert_equal(-90, transfer.inflow_transaction.entry.amount)
+    assert_equal "EUR", transfer.inflow_transaction.entry.currency
+  end
 
-    # Verify outflow transaction
-    outflow = transfer.outflow_transaction
-    assert_equal "funds_movement", outflow.kind
-    assert_equal "Transfer to #{crypto_account.name}", outflow.entry.name
+  test "uses the supplied destination amount instead of the rate" do
+    usd_to_eur_rate
+    transfer = create_transfer(destination_account_id: eur_account.id, destination_amount: 95)
 
-    # Verify inflow transaction with currency handling
-    inflow = transfer.inflow_transaction
-    assert_equal "funds_movement", inflow.kind
-    assert_equal "Transfer from #{@source_account.name}", inflow.entry.name
-    assert_equal crypto_account.currency, inflow.entry.currency
+    assert transfer.persisted?
+    assert_equal 100, transfer.outflow_transaction.entry.amount
+    assert_equal(-95, transfer.inflow_transaction.entry.amount)
+  end
+
+  test "creates a cross-currency transfer with a supplied amount when no rate exists" do
+    eur_account
+    ExchangeRate.delete_all
+    ExchangeRate.stubs(:provider).returns(nil)
+
+    transfer = create_transfer(destination_account_id: eur_account.id, destination_amount: 95)
+
+    assert transfer.persisted?
+    assert_equal(-95, transfer.inflow_transaction.entry.amount)
+  end
+
+  # Regression test for the silent 1:1 fallback, which recorded 100 USD as 100 EUR.
+  test "does not create a cross-currency transfer when no rate and no amount are given" do
+    eur_account
+    ExchangeRate.delete_all
+    ExchangeRate.stubs(:provider).returns(nil)
+
+    transfer = nil
+    assert_no_difference "Transfer.count" do
+      transfer = create_transfer(destination_account_id: eur_account.id)
+    end
+
+    assert_not transfer.persisted?
+    assert_match(/USD/, transfer.errors.full_messages.first)
+    assert_match(/EUR/, transfer.errors.full_messages.first)
+  end
+
+  test "carries the last published rate forward when the exact date has none" do
+    usd_to_eur_rate # rate exists for @date only
+
+    transfer = create_transfer(destination_account_id: eur_account.id, date: @date + 3.days)
+
+    assert transfer.persisted?
+    assert_equal(-90, transfer.inflow_transaction.entry.amount)
+  end
+
+  test "does not carry a rate backwards to a date before it was published" do
+    usd_to_eur_rate
+    ExchangeRate.stubs(:provider).returns(nil)
+
+    transfer = create_transfer(destination_account_id: eur_account.id, date: @date - 3.days)
+
+    assert_not transfer.persisted?
+  end
+
+  test "ignores the destination amount when both accounts share a currency" do
+    transfer = create_transfer(destination_amount: 999)
+
+    assert transfer.persisted?
+    assert_equal(-100, transfer.inflow_transaction.entry.amount)
+  end
+
+  test "treats a zero destination amount as absent and falls back to the rate" do
+    usd_to_eur_rate
+    transfer = create_transfer(destination_account_id: eur_account.id, destination_amount: 0)
+
+    assert transfer.persisted?
+    assert_equal(-90, transfer.inflow_transaction.entry.amount)
+  end
+
+  test "normalizes a negative destination amount" do
+    usd_to_eur_rate
+    transfer = create_transfer(destination_account_id: eur_account.id, destination_amount: -95)
+
+    assert transfer.persisted?
+    assert_equal(-95, transfer.inflow_transaction.entry.amount)
+  end
+
+  test "rounds the converted amount to the destination currency precision" do
+    jpy_account = @family.accounts.create!(
+      name: "JPY Wallet", balance: 0, currency: "JPY", accountable: Depository.new
+    )
+    ExchangeRate.create!(from_currency: "USD", to_currency: "JPY", rate: 147.5, date: @date)
+
+    transfer = create_transfer(destination_account_id: jpy_account.id, amount: 10.03)
+
+    # JPY has a default_precision of 0, so the leg is whole yen
+    assert_equal(-1479, transfer.inflow_transaction.entry.amount)
   end
 
   test "creates loan payment" do
@@ -163,4 +235,27 @@ class Transfer::CreatorTest < ActiveSupport::TestCase
       )
     end
   end
+
+  private
+    def eur_account
+      @eur_account ||= @family.accounts.create!(
+        name: "EUR Checking", balance: 0, currency: "EUR", accountable: Depository.new
+      )
+    end
+
+    def usd_to_eur_rate
+      ExchangeRate.create!(from_currency: "USD", to_currency: "EUR", rate: 0.9, date: @date)
+    end
+
+    def create_transfer(**overrides)
+      Transfer::Creator.new(
+        **{
+          family: @family,
+          source_account_id: @source_account.id,
+          destination_account_id: @destination_account.id,
+          date: @date,
+          amount: @amount
+        }.merge(overrides)
+      ).create
+    end
 end

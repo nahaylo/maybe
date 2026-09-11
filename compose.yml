@@ -1,0 +1,181 @@
+# ===========================================================================
+# Docker Compose configuration
+# ===========================================================================
+#
+# Purpose:
+# --------
+#
+# The Docker setup for this checkout. It started life as compose.example.yml
+# and differs in three ways:
+#
+#   1. The app image is BUILT FROM LOCAL SOURCE (see the web service) rather
+#      than pulled from ghcr.io, so local code changes are included.
+#   2. Source directories are bind-mounted, so most edits need only a
+#      restart instead of a rebuild.
+#   3. The web service is published on host port 3088 instead of 3000.
+#
+# Secrets:
+# --------
+#
+# No secrets belong in this file -- it is tracked in git. Every sensitive
+# value is interpolated from .env, which stays gitignored. Note that .env is
+# only used to fill in ${VAR} references below; Compose does not inject it
+# into containers, so a new variable must be added BOTH to .env and to the
+# x-rails-env block.
+#
+# Setup:
+# ------
+#
+#   docs/development/local-docker.md   (this setup)
+#   https://github.com/maybe-finance/maybe/blob/main/docs/hosting/docker.md
+#
+# Troubleshooting:
+# ----------------
+#
+# https://github.com/maybe-finance/maybe/discussions/categories/general
+#
+
+x-db-env: &db_env
+  POSTGRES_USER: ${POSTGRES_USER:-maybe_user}
+  POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-maybe_password}
+  POSTGRES_DB: ${POSTGRES_DB:-maybe_production}
+
+x-rails-env: &rails_env
+  <<: *db_env
+  SECRET_KEY_BASE: ${SECRET_KEY_BASE:-a7523c3d0ae56415046ad8abae168d71074a79534a7062258f8d1d51ac2f76d3c3bc86d86b6b0b307df30d9a6a90a2066a3fa9e67c5e6f374dbd7dd4e0778e13}
+  SELF_HOSTED: "true"
+  RAILS_FORCE_SSL: "false"
+  RAILS_ASSUME_SSL: "false"
+  DB_HOST: db
+  DB_PORT: 5432
+  REDIS_URL: redis://redis:6379/1
+  APP_DOMAIN: ${APP_DOMAIN:-localhost:3000}
+# NOTE: enabling OpenAI will incur costs when you use AI-related features in the app (chat, rules).  Make sure you have set appropriate spend limits on your account before adding this.
+  OPENAI_ACCESS_TOKEN: ${OPENAI_ACCESS_TOKEN}
+# Commit SHA shown next to the version number in the user menu. Compose cannot
+# run commands, so it has to come from the shell:
+#
+#     BUILD_COMMIT_SHA=$(git rev-parse HEAD) docker compose up -d
+#
+# `docker compose restart` does NOT re-read this file, so the value refreshes
+# only on `up -d`. Left empty, the version line simply omits the SHA.
+  BUILD_COMMIT_SHA: ${BUILD_COMMIT_SHA:-}
+# Passed in purely so the Backups settings page can show where dumps land on the
+# host. A container cannot see the host side of its own bind mount, so without
+# this the UI can only report the in-container path.
+  BACKUP_HOST_ROOT: ${BACKUP_HOST_ROOT:-}
+
+services:
+  web:
+    # Built from this checkout instead of the published image, so local code
+    # changes (new providers, rake tasks) are included. Only this service
+    # declares `build` -- building the same tag from two services in parallel
+    # makes them race on exporting the image.
+    # Rebuild is needed only for Gemfile/Dockerfile/asset changes; for Ruby
+    # edits a `docker compose restart web worker` is enough.
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: maybe-app:local
+    volumes:
+      - app-storage:/rails/storage
+      # Host folder for database backups, so dumps land outside Docker (an
+      # iCloud Drive folder, an external disk). A container cannot change its
+      # own mounts at runtime, so this is fixed at `up` time -- the subfolder
+      # within it is chosen in Settings > Backups and needs no restart.
+      # Defaults to a local folder so the stack still starts without it.
+      - ${BACKUP_HOST_ROOT:-./tmp/backups}:/rails/backups
+      # Mount Ruby source so code changes need only a restart, not a rebuild.
+      # public/assets is deliberately NOT mounted -- compiled assets live only
+      # in the image, so mounting over them would break CSS/JS.
+      - ./app:/rails/app
+      - ./lib:/rails/lib
+      - ./config:/rails/config
+      - ./db:/rails/db
+      - ./test:/rails/test
+      # The "What's new" page renders docs/CHANGELOG.md (see Changelog), so it
+      # has to track the working tree like the source does. The directory is
+      # mounted rather than the file: a single-file bind mount follows the
+      # inode, and editors that save by replacing the file leave it dangling.
+      - ./docs:/rails/docs:ro
+      # Legacy import source data + mapping. Read-only: the task never writes here.
+      - ./import:/rails/import:ro
+    ports:
+      - 3088:3000
+    restart: unless-stopped
+    environment:
+      <<: *rails_env
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - maybe_net
+
+  worker:
+    # Reuses the image built by the web service
+    image: maybe-app:local
+    command: bundle exec sidekiq
+    volumes:
+      # Must match the web service: jobs write files here (database backups,
+      # ActiveStorage attachments such as family exports) and the web process
+      # serves them. Without the shared volume each container gets its own
+      # /rails/storage and anything a job writes is invisible to the web app.
+      - app-storage:/rails/storage
+      # Host folder for database backups, so dumps land outside Docker (an
+      # iCloud Drive folder, an external disk). A container cannot change its
+      # own mounts at runtime, so this is fixed at `up` time -- the subfolder
+      # within it is chosen in Settings > Backups and needs no restart.
+      # Defaults to a local folder so the stack still starts without it.
+      - ${BACKUP_HOST_ROOT:-./tmp/backups}:/rails/backups
+      - ./app:/rails/app
+      - ./lib:/rails/lib
+      - ./config:/rails/config
+      - ./db:/rails/db
+      - ./test:/rails/test
+    restart: unless-stopped
+    depends_on:
+      redis:
+        condition: service_healthy
+    environment:
+      <<: *rails_env
+    networks:
+      - maybe_net
+
+  db:
+    image: postgres:16
+    restart: unless-stopped
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    environment:
+      <<: *db_env
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - maybe_net
+
+  redis:
+    image: redis:latest
+    restart: unless-stopped
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - maybe_net
+
+volumes:
+  app-storage:
+  postgres-data:
+  redis-data:
+
+networks:
+  maybe_net:
+    driver: bridge

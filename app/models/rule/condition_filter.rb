@@ -1,12 +1,13 @@
 class Rule::ConditionFilter
   UnsupportedOperatorError = Class.new(StandardError)
 
-  TYPES = [ "text", "number", "select" ]
+  TYPES = [ "text", "number", "select", "date" ]
 
   OPERATORS_MAP = {
     "text" => [ [ "Contains", "like" ], [ "Equal to", "=" ] ],
     "number" => [ [ "Greater than", ">" ], [ "Greater or equal to", ">=" ], [ "Less than", "<" ], [ "Less than or equal to", "<=" ], [ "Is equal to", "=" ] ],
-    "select" => [ [ "Equal to", "=" ] ]
+    "select" => [ [ "Equal to", "=" ] ],
+    "date" => [ [ "Before", "<" ], [ "On or before", "<=" ], [ "After", ">" ], [ "On or after", ">=" ], [ "On", "=" ] ]
   }
 
   def initialize(rule)

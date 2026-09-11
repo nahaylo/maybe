@@ -20,14 +20,20 @@
                                     placeholder: t("vehicles.form.year_placeholder"),
                                     min: 1900,
                                     max: Time.current.year + 1 %>
-        <%= vehicle_form.number_field :mileage_value,
-                                    label: t("vehicles.form.mileage"),
-                                    placeholder: t("vehicles.form.mileage_placeholder"),
-                                    min: 0 %>
-        <%= vehicle_form.select :mileage_unit,
-                              [["Miles", "mi"], ["Kilometers", "km"]],
-                              { label: t("vehicles.form.mileage_unit") } %>
       </div>
+
+      <%# Mileage is not edited here: it comes from dated odometer readings on the
+          account, so the value has a history rather than being overwritten. %>
+
+      <%# Naming the fuel category is what lets the overview show spend, volume
+          and economy -- see Vehicle#fuel_spend. %>
+      <%= render "categories/select",
+                 form: vehicle_form,
+                 categories: Current.family.categories.alphabetically,
+                 field: :fuel_category_id,
+                 selected: vehicle_form.object&.fuel_category_id,
+                 label: t("vehicles.form.fuel_category"),
+                 blank_label: t("vehicles.form.fuel_category_blank") %>
     <% end %>
   </div>
 <% end %>

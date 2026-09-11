@@ -253,7 +253,7 @@ end
     def transaction_params
       params.require(:transaction).permit(
         :account_id, :date, :amount, :name, :description, :notes, :currency,
-        :category_id, :merchant_id, :nature, tag_ids: []
+        :category_id, :merchant_id, :nature, :quantity, :unit, tag_ids: []
       )
     end
 
@@ -268,7 +268,9 @@ end
         entryable_attributes: {
           category_id: transaction_params[:category_id],
           merchant_id: transaction_params[:merchant_id],
-          tag_ids: transaction_params[:tag_ids] || []
+          tag_ids: transaction_params[:tag_ids] || [],
+          quantity: transaction_params[:quantity],
+          unit: transaction_params[:unit]
         }
       }
 
@@ -287,6 +289,14 @@ end
           tag_ids: transaction_params[:tag_ids]
         }.compact_blank
       }
+
+      # `compact_blank` above would swallow a deliberate clear, so assign these
+      # only when the caller actually sent them -- blank means "unset".
+      %i[quantity unit].each do |attribute|
+        next unless transaction_params.key?(attribute)
+
+        entry_params[:entryable_attributes][attribute] = transaction_params[attribute].presence
+      end
 
       # Only update amount if provided
       if transaction_params[:amount].present?

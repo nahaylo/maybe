@@ -59,6 +59,13 @@ Rails.application.routes.draw do
     resource :preferences, only: :show
     resource :hosting, only: %i[show update] do
       delete :clear_cache, on: :collection
+      post :sync_market_data, on: :collection
+    end
+    resource :backup, only: %i[show update create] do
+      # Filenames are validated against DatabaseBackup::FILENAME, but the route
+      # constraint keeps anything path-like from reaching the controller at all.
+      get  "download/:filename", action: :download, as: :download, on: :collection, constraints: { filename: /[a-z0-9_]+-\d{8}-\d{6}(\.sql\.gz|\.dump)/ }
+      delete "file/:filename", action: :destroy, as: :file, on: :collection, constraints: { filename: /[a-z0-9_]+-\d{8}-\d{6}(\.sql\.gz|\.dump)/ }
     end
     resource :billing, only: :show
     resource :security, only: :show
@@ -121,6 +128,9 @@ Rails.application.routes.draw do
     post :confirm_update, on: :member
   end
 
+  # No confirmation step, unlike valuations: a reading changes no balance.
+  resources :mileages, only: %i[show new create update destroy]
+
   namespace :transactions do
     resource :bulk_deletion, only: :create
     resource :bulk_update, only: %i[new create]
@@ -161,10 +171,12 @@ Rails.application.routes.draw do
       post :sync
       get :sparkline
       patch :toggle_active
+      patch :convert
     end
 
     collection do
       post :sync_all
+      patch :reorder
     end
   end
 
@@ -189,6 +201,8 @@ Rails.application.routes.draw do
   resources :credit_cards, only: %i[new create edit update]
   resources :loans, only: %i[new create edit update]
   resources :cryptos, only: %i[new create edit update]
+  resources :deposits, only: %i[new create edit update]
+  resources :businesses, only: %i[new create edit update]
   resources :other_assets, only: %i[new create edit update]
   resources :other_liabilities, only: %i[new create edit update]
 
@@ -233,6 +247,9 @@ Rails.application.routes.draw do
 
 
   resources :currencies, only: %i[show]
+
+  # GET /exchange_rate?from=USD&to=UAH&date=…&amount=… (singular: keyed by pair + date, not an id)
+  resource :exchange_rate, only: %i[show create]
 
   resources :impersonation_sessions, only: [ :create ] do
     post :join, on: :collection

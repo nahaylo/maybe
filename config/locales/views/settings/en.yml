@@ -83,6 +83,7 @@ en:
       profile_label: Account
       rules_label: Rules
       security_label: Security
+      backups_label: Backups
       self_hosting_label: Self hosting
       tags_label: Tags
       transactions_section_title: Transactions

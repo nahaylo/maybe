@@ -1,0 +1,7 @@
+---
+en:
+  businesses:
+    edit:
+      edit: Edit %{account}
+    new:
+      title: Enter business account details

@@ -11,6 +11,50 @@
 
     <%= form.text_field :name, placeholder: t(".name_placeholder"), required: "required", label: t(".name_label") %>
 
+    <%# Both pickers live in the shared form so every accountable type gets them,
+        and so :lucide_icon/:custom_color only have to be permitted once in
+        AccountableResource. %>
+    <div class="space-y-1.5">
+      <label class="block text-sm font-medium text-secondary">Color</label>
+      <div class="flex flex-wrap gap-2 items-center">
+        <label class="relative" title="Default for this account type">
+          <%= form.radio_button :custom_color, "", class: "sr-only peer", checked: account.custom_color.blank? %>
+          <div class="w-6 h-6 rounded-full cursor-pointer border border-secondary flex items-center justify-center peer-checked:ring-2 peer-checked:ring-offset-2 peer-checked:ring-gray-500"
+               style="background-color: <%= account.accountable.color %>">
+            <%= icon("rotate-ccw", size: "xs", color: "white") %>
+          </div>
+        </label>
+
+        <% Account::COLORS.each do |hex| %>
+          <label class="relative" title="<%= hex %>">
+            <%= form.radio_button :custom_color, hex, class: "sr-only peer" %>
+            <div class="w-6 h-6 rounded-full cursor-pointer peer-checked:ring-2 peer-checked:ring-offset-2 peer-checked:ring-gray-500" style="background-color: <%= hex %>"></div>
+          </label>
+        <% end %>
+      </div>
+    </div>
+
+    <div class="space-y-1.5">
+      <label class="block text-sm font-medium text-secondary">Icon</label>
+      <div class="flex flex-wrap gap-0.5 p-2 max-h-32 overflow-y-auto border border-secondary rounded-lg">
+        <label class="relative" title="Default for this account type">
+          <%= form.radio_button :lucide_icon, "", class: "sr-only peer", checked: account.lucide_icon.blank? %>
+          <div class="text-secondary w-7 h-7 flex m-0.5 items-center justify-center rounded-full cursor-pointer hover:bg-container-inset-hover peer-checked:bg-container-inset peer-checked:text-primary">
+            <%= icon(account.accountable.icon, size: "sm", color: "current") %>
+          </div>
+        </label>
+
+        <% Account::ICON_CODES.each do |code| %>
+          <label class="relative" title="<%= code.tr("-", " ") %>">
+            <%= form.radio_button :lucide_icon, code, class: "sr-only peer" %>
+            <div class="text-secondary w-7 h-7 flex m-0.5 items-center justify-center rounded-full cursor-pointer hover:bg-container-inset-hover peer-checked:bg-container-inset peer-checked:text-primary">
+              <%= icon(code, size: "sm", color: "current") %>
+            </div>
+          </label>
+        <% end %>
+      </div>
+    </div>
+
     <% unless account.linked? %>
       <%= form.money_field :balance, label: t(".balance"), required: true, default_currency: Current.family.currency %>
     <% end %>
@@ -19,4 +63,28 @@
   </div>
 
   <%= form.submit %>
+<% end %>
+
+<%# Type conversion is its own form -- it is a different endpoint, and nesting a
+    form inside the one above would be invalid HTML. Only offered on persisted,
+    unlinked accounts: a linked account's type comes from the provider. %>
+<% if account.persisted? && account.convertible? %>
+  <div class="mt-4 pt-4 border-t border-secondary">
+    <%= styled_form_with model: account,
+          url: convert_account_path(account),
+          method: :patch,
+          data: { turbo: false },
+          class: "space-y-2" do |convert_form| %>
+      <%= convert_form.select :accountable_type,
+            Accountable::TYPES.map { |type| [ Accountable.from_type(type).display_name.singularize, type ] },
+            {
+              label: "Account type",
+              selected: account.accountable_type,
+              hint: "Moves the account to a different type. Balances and history are kept."
+            },
+            name: :accountable_type %>
+
+      <%= render DS::Button.new(text: "Change type", variant: "outline", full_width: true) %>
+    <% end %>
+  </div>
 <% end %>

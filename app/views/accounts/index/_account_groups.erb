@@ -11,12 +11,12 @@
         <p class="ml-auto"><%= totals_by_currency(collection: accounts, money_method: :balance_money) %></p>
       <% end %>
     </div>
-    <div class="bg-container rounded-lg shadow-border-xs">
-      <% accounts.each_with_index do |account, index| %>
-        <%= render account %>
-        <% unless index == accounts.count - 1 %>
-          <%= render "shared/ruler" %>
-        <% end %>
+    <%# Dividers are CSS rather than interleaved <hr> siblings, which drag-and-drop
+        would leave stranded between the wrong rows. %>
+    <div class="bg-container rounded-lg shadow-border-xs divide-y divide-alpha-black-100 theme-dark:divide-alpha-white-200"
+         data-sortable-target="list">
+      <% accounts.each do |account| %>
+        <%= render account, sortable: true %>
       <% end %>
     </div>
   </div>

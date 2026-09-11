@@ -80,6 +80,36 @@ class Rule::ActionTest < ActiveSupport::TestCase
     end
   end
 
+  test "attribute_to_account" do
+    car = @family.accounts.create!(name: "Rule test car", balance: 0, currency: "USD", accountable: Vehicle.new)
+
+    # Does not modify transactions that are locked (user edited them)
+    @txn1.lock_attr!(:attributed_account_id)
+
+    action = Rule::Action.new(
+      rule: @transaction_rule,
+      action_type: "attribute_to_account",
+      value: car.id
+    )
+
+    action.apply(@rule_scope)
+
+    assert_nil @txn1.reload.attributed_account_id
+
+    [ @txn2, @txn3 ].each do |transaction|
+      assert_equal car.id, transaction.reload.attributed_account_id
+    end
+  end
+
+  test "attribute_to_account ignores a disabled account" do
+    car = @family.accounts.create!(name: "Sold car", balance: 0, currency: "USD", accountable: Vehicle.new)
+    car.disable!
+
+    Rule::Action.new(rule: @transaction_rule, action_type: "attribute_to_account", value: car.id).apply(@rule_scope)
+
+    assert_nil @txn2.reload.attributed_account_id
+  end
+
   test "set_transaction_name" do
     new_name = "Renamed Transaction"
 

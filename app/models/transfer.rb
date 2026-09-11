@@ -65,6 +65,21 @@ class Transfer < ApplicationRecord
     inflow_transaction&.entry&.amount_money&.abs
   end
 
+  def cross_currency?
+    from_account&.currency.present? && to_account&.currency.present? &&
+      from_account.currency != to_account.currency
+  end
+
+  # Nothing persists the rate applied at creation time, so it is reconstructed
+  # from the two legs. Display only -- it is quantized by each leg's rounding.
+  def derived_exchange_rate
+    outflow = outflow_transaction&.entry&.amount&.abs
+    inflow = inflow_transaction&.entry&.amount&.abs
+    return nil if outflow.blank? || inflow.blank? || outflow.zero?
+
+    (inflow / outflow).round(6)
+  end
+
   def name
     acc = to_account
     if payment?

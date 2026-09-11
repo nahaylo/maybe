@@ -84,12 +84,52 @@ class Family < ApplicationRecord
     false
   end
 
+  # Warns only when the app genuinely cannot fetch rates. Asking for Synth
+  # specifically was wrong once Frankfurter and NBU were added -- both need no
+  # API key, so a self-hosted install is covered out of the box.
   def missing_data_provider?
-    requires_data_provider? && Provider::Registry.get_provider(:synth).nil?
+    requires_data_provider? && ExchangeRate.provider.nil?
+  end
+
+  # Rates are a daily series, and the balance sheet joins on today's date with
+  # COALESCE(rate, 1) -- so a missing rate silently converts foreign balances at
+  # parity rather than failing. Surfacing staleness is the only way to catch it.
+  def stale_exchange_rates?
+    return false unless requires_data_provider?
+    return false if ExchangeRate.provider.nil?
+
+    latest_exchange_rate_date.nil? || latest_exchange_rate_date < Date.current
+  end
+
+  def latest_exchange_rate_date
+    ExchangeRate.where(to_currency: currency).maximum(:date)
   end
 
   def oldest_entry_date
     entries.order(:date).first&.date || Date.current
+  end
+
+  # Applies a user-chosen account order. `ordered_ids` is the full list in its new
+  # order; ids that do not belong to this family are ignored, and any account the
+  # list omits keeps its current position.
+  #
+  # update_all skips timestamps, so updated_at is bumped explicitly -- besides
+  # being accurate, build_cache_key below reads accounts.maximum(:updated_at),
+  # which is what expires the cached balance sheet.
+  def reorder_accounts!(ordered_ids)
+    ids = accounts.where(id: ordered_ids).pluck(:id)
+    return 0 if ids.empty?
+
+    ordered = ordered_ids.map(&:to_s) & ids.map(&:to_s)
+    now = Time.current
+
+    transaction do
+      ordered.each_with_index do |id, index|
+        accounts.where(id: id).update_all(position: index + 1, updated_at: now)
+      end
+    end
+
+    ordered.size
   end
 
   # Used for invalidating family / balance sheet related aggregation queries

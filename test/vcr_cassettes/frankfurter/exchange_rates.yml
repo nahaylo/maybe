@@ -1,0 +1,49 @@
+---
+http_interactions:
+- request:
+    method: get
+    uri: https://api.frankfurter.dev/v1/2024-01-01..2024-01-31?base=USD&symbols=GBP
+    body:
+      encoding: US-ASCII
+      string: ''
+    headers:
+      User-Agent:
+      - Faraday v2.13.2
+      Accept-Encoding:
+      - gzip;q=1.0,deflate;q=0.6,identity;q=0.3
+      Accept:
+      - "*/*"
+  response:
+    status:
+      code: 200
+      message: OK
+    headers:
+      Date:
+      - Tue, 25 Aug 2026 12:58:22 GMT
+      Content-Type:
+      - application/json; charset=utf-8
+      Transfer-Encoding:
+      - chunked
+      Connection:
+      - keep-alive
+      Cache-Control:
+      - public, max-age=86400
+      Nel:
+      - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
+      Vary:
+      - Origin
+      Report-To:
+      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=tM9ICwHSXy3WNA9PhVAEnRwYkmuOGnXtrSGS%2BGiurciEDatDGwHRZgt3r%2FNyU1bj1Bqkw0xtA6IxY%2Bgk%2FU3Dzx3PgFC%2BZTWBdgJJ%2ByHGBlqoBPoOqJb%2B2HwXjhggsBEO6Mtsw%2FY%3D"}]}'
+      Cf-Cache-Status:
+      - MISS
+      Etag:
+      - W/"8751ca10a6c6b7238bb34d53ef294d36"
+      Server:
+      - cloudflare
+      Cf-Ray:
+      - a30ac490b9271ae7-WAW
+    body:
+      encoding: ASCII-8BIT
+      string: '{"amount":1.0,"base":"USD","start_date":"2023-12-29","end_date":"2024-01-31","rates":{"2023-12-29":{"GBP":0.78647},"2024-01-02":{"GBP":0.79085},"2024-01-03":{"GBP":0.79192},"2024-01-04":{"GBP":0.78771},"2024-01-05":{"GBP":0.7894},"2024-01-08":{"GBP":0.78705},"2024-01-09":{"GBP":0.78554},"2024-01-10":{"GBP":0.78589},"2024-01-11":{"GBP":0.78406},"2024-01-12":{"GBP":0.78551},"2024-01-15":{"GBP":0.78643},"2024-01-16":{"GBP":0.79101},"2024-01-17":{"GBP":0.78899},"2024-01-18":{"GBP":0.78872},"2024-01-19":{"GBP":0.78833},"2024-01-22":{"GBP":0.78581},"2024-01-23":{"GBP":0.78636},"2024-01-24":{"GBP":0.78444},"2024-01-25":{"GBP":0.78526},"2024-01-26":{"GBP":0.78528},"2024-01-29":{"GBP":0.78767},"2024-01-30":{"GBP":0.78949},"2024-01-31":{"GBP":0.78836}}}'
+  recorded_at: Tue, 25 Aug 2026 12:58:22 GMT
+recorded_with: VCR 6.3.1

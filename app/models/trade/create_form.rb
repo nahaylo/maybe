@@ -77,13 +77,27 @@ class Trade::CreateForm
         from_account_id = type == "withdrawal" ? account.id : transfer_account_id
         to_account_id = type == "withdrawal" ? transfer_account_id : account.id
 
-        Transfer::Creator.new(
+        transfer = Transfer::Creator.new(
           family: account.family,
           source_account_id: from_account_id,
           destination_account_id: to_account_id,
           date: date,
           amount: amount
         ).create
+
+        return transfer if transfer.persisted?
+
+        # A failed transfer has no transactions, and trades/_form.html.erb calls
+        # `model.date` / `model.amount` -- rendering a bare Transfer would 500.
+        # Hand back an unsaved entry carrying the same errors instead.
+        account.entries.new(
+          date: date,
+          amount: amount.to_d,
+          currency: currency,
+          entryable: Transaction.new
+        ).tap do |entry|
+          transfer.errors.full_messages.each { |message| entry.errors.add(:base, message) }
+        end
       else
         create_unlinked_transfer
       end

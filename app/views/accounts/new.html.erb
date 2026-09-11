@@ -2,6 +2,8 @@
   <div class="text-sm">
     <% unless params[:classification] == "liability" %>
       <%= render "account_type", accountable: Depository.new %>
+      <%= render "account_type", accountable: Deposit.new %>
+      <%= render "account_type", accountable: Business.new %>
       <%= render "account_type", accountable: Investment.new %>
       <%= render "account_type", accountable: Crypto.new %>
       <%= render "account_type", accountable: Property.new %>

@@ -196,7 +196,7 @@ end
     assert response_body["pagination"]["per_page"] > 0
   end
 
-  test "should sort accounts alphabetically" do
+  test "should sort accounts by the family's manual order" do
     access_token = Doorkeeper::AccessToken.create!(
       application: @oauth_app,
       resource_owner_id: @user.id,
@@ -210,8 +210,46 @@ end
     assert_response :success
     response_body = JSON.parse(response.body)
 
-    # Should be sorted alphabetically by name
-    account_names = response_body["accounts"].map { |a| a["name"] }
-    assert_equal account_names.sort, account_names
+    expected = @user.family.accounts.visible.ordered.pluck(:name)
+    assert_equal expected, response_body["accounts"].map { |a| a["name"] }
+  end
+
+  # Positions are NULL until a family reorders, and :name breaks the tie -- so an
+  # untouched family still sees the alphabetical order it saw before.
+  test "should fall back to alphabetical order when no manual order is set" do
+    @user.family.accounts.update_all(position: nil)
+    access_token = Doorkeeper::AccessToken.create!(
+      application: @oauth_app,
+      resource_owner_id: @user.id,
+      scopes: "read"
+    )
+
+    get "/api/v1/accounts", params: {}, headers: {
+      "Authorization" => "Bearer #{access_token.token}"
+    }
+
+    assert_response :success
+    names = JSON.parse(response.body)["accounts"].map { |a| a["name"] }
+    assert_equal names.sort, names
+  end
+
+  test "should reflect a manual reorder" do
+    family = @user.family
+    family.reorder_accounts!(family.accounts.visible.ordered.pluck(:id).reverse)
+
+    access_token = Doorkeeper::AccessToken.create!(
+      application: @oauth_app,
+      resource_owner_id: @user.id,
+      scopes: "read"
+    )
+
+    get "/api/v1/accounts", params: {}, headers: {
+      "Authorization" => "Bearer #{access_token.token}"
+    }
+
+    assert_response :success
+    names = JSON.parse(response.body)["accounts"].map { |a| a["name"] }
+    assert_equal family.accounts.visible.ordered.pluck(:name), names
+    assert_not_equal names.sort, names, "expected the manual order to differ from alphabetical"
   end
 end

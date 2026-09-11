@@ -38,16 +38,25 @@
             </div>
 
             <%= f.fields_for :entryable do |ef| %>
-              <%= ef.collection_select :category_id,
-                      Current.family.categories.alphabetically,
-                    :id, :name,
-                    { label: t(".category_label"),
-                      class: "text-subdued", include_blank: t(".uncategorized") },
-                    "data-auto-submit-form-target": "auto" %>
+              <%= render "categories/select",
+                         form: ef,
+                         categories: Current.family.categories.alphabetically,
+                         selected: ef.object&.category_id,
+                         label: t(".category_label"),
+                         blank_label: t(".uncategorized"),
+                         auto_submit: true %>
             <% end %>
           <% end %>
 
         <% end %>
+      </div>
+
+      <%# Outside the form above, so the auto-submit controller never posts it. %>
+      <div class="pb-4 text-sm">
+        <%= render "shared/copyable_id",
+                   id: @entry.id,
+                   label: t(".id_label"),
+                   copy_label: t(".copy_id") %>
       </div>
     <% end %>
 
@@ -60,7 +69,7 @@
           <% unless @entry.transaction.transfer? %>
             <%= f.select :account,
                 options_for_select(
-                  Current.family.accounts.alphabetically.pluck(:name, :id),
+                  Current.family.accounts.ordered.pluck(:name, :id),
                   @entry.account_id
                 ),
                 { label: t(".account_label") },
@@ -76,6 +85,18 @@
                       class: "text-subdued" },
                     "data-auto-submit-form-target": "auto" %>
 
+              <%# Which asset this spend served -- only offered once there is one to pick. %>
+              <% attributable = Current.family.accounts.attributable.alphabetically.to_a %>
+              <% if attributable.any? || @entry.transaction.attributed_account %>
+                <%= ef.collection_select :attributed_account_id,
+                      [@entry.transaction.attributed_account, *attributable].compact.uniq,
+                      :id, :name,
+                      { include_blank: t(".none"),
+                        label: t(".attributed_account_label"),
+                        class: "text-subdued" },
+                      "data-auto-submit-form-target": "auto" %>
+              <% end %>
+
               <%= ef.select :tag_ids,
                     Current.family.tags.alphabetically.pluck(:name, :id),
                     {
@@ -86,6 +107,23 @@
                     },
                     { "data-auto-submit-form-target": "auto" } %>
             <% end %>
+          <% end %>
+
+          <%# Outside the transfer guard on purpose -- quantity applies to every transaction %>
+          <%= f.fields_for :entryable do |ef| %>
+            <div class="flex items-start gap-2">
+              <%= ef.number_field :quantity,
+                    label: t(".quantity_label"),
+                    container_class: "w-1/2",
+                    step: "any",
+                    min: 0,
+                    "data-auto-submit-form-target": "auto" %>
+
+              <%= ef.select :unit,
+                    Transaction.unit_options,
+                    { include_blank: t(".none"), label: t(".unit_label"), container_class: "w-1/2" },
+                    { "data-auto-submit-form-target": "auto" } %>
+            </div>
           <% end %>
 
           <%= f.text_area :notes,

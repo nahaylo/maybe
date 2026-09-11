@@ -25,6 +25,50 @@ class TransfersControllerTest < ActionDispatch::IntegrationTest
     end
   end
 
+  test "creates a cross-currency transfer with an explicit destination amount" do
+    eur_account = families(:dylan_family).accounts.create!(
+      name: "EUR Checking", balance: 0, currency: "EUR", accountable: Depository.new
+    )
+
+    assert_difference "Transfer.count", 1 do
+      post transfers_url, params: {
+        transfer: {
+          from_account_id: accounts(:depository).id,
+          to_account_id: eur_account.id,
+          date: Date.current,
+          amount: 100,
+          destination_amount: 95
+        }
+      }
+    end
+
+    assert_equal(-95, Transfer.order(:created_at).last.inflow_transaction.entry.amount)
+  end
+
+  test "refuses to create a cross-currency transfer when no rate is available" do
+    eur_account = families(:dylan_family).accounts.create!(
+      name: "EUR Checking", balance: 0, currency: "EUR", accountable: Depository.new
+    )
+    ExchangeRate.delete_all
+    ExchangeRate.stubs(:provider).returns(nil)
+
+    assert_no_difference "Transfer.count" do
+      post transfers_url, params: {
+        transfer: {
+          from_account_id: accounts(:depository).id,
+          to_account_id: eur_account.id,
+          date: Date.current,
+          amount: 100
+        }
+      }
+    end
+
+    assert_response :unprocessable_entity
+    assert_match(/exchange rate/i, response.body)
+    # The submitted amount is echoed back so the user is not asked to retype it
+    assert_match(/value="100"/, response.body)
+  end
+
   test "soft deletes transfer" do
     assert_difference -> { Transfer.count }, -1 do
       delete transfer_url(transfers(:one))

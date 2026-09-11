@@ -1,0 +1,30 @@
+<%# locals: (form:, categories:, field: :category_id, selected: nil, label: "Category", blank_label: "None", auto_submit: false, container_class: nil, child_data: {}) %>
+<% groups = Category::Group.for(categories) %>
+<% group = category_group_for(groups, selected) %>
+<% parent_input_id = form.field_id(field, :parent) %>
+
+<div class="<%= class_names("space-y-2", container_class) %>"
+     data-controller="category-select"
+     data-category-select-subcategories-value="<%= category_subcategories_by_parent(groups).to_json %>">
+  <div class="form-field">
+    <div class="form-field__body">
+      <%= label_tag parent_input_id, label, class: "form-field__label" %>
+      <%# Deliberately not the model's field: the subcategory select below is
+          what gets submitted, so this one's own name is ignored. %>
+      <%= select_tag "category_parent",
+                     category_parent_options(groups, selected: group, blank_label: blank_label),
+                     id: parent_input_id,
+                     class: "form-field__input",
+                     data: { category_select_target: "parent", action: "change->category-select#parentChanged" } %>
+    </div>
+  </div>
+
+  <div class="<%= class_names("hidden" => group.nil? || group.subcategories.empty?) %>" data-category-select-target="childWrapper">
+    <%= form.select field,
+                    category_subcategory_options(group, selected: selected),
+                    { label: "Subcategory" },
+                    data: { category_select_target: "child" }
+                          .merge(auto_submit ? { auto_submit_form_target: "auto" } : {})
+                          .merge(child_data) %>
+  </div>
+</div>

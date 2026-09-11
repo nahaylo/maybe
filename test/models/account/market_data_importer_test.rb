@@ -20,6 +20,12 @@ class Account::MarketDataImporterTest < ActiveSupport::TestCase
                       .stubs(:get_provider)
                       .with(:synth)
                       .returns(@provider)
+
+    # ExchangeRate now selects a provider per currency pair rather than always
+    # asking for Synth, so the pair-aware entry points need stubbing too.
+    ExchangeRate.stubs(:providers).returns([ @provider ])
+    ExchangeRate.stubs(:provider).returns(@provider)
+    ExchangeRate.stubs(:provider_for).returns(@provider)
   end
 
   test "syncs required exchange rates for a foreign-currency account" do

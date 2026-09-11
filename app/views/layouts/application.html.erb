@@ -18,6 +18,8 @@
     data-app-layout-user-id-value="<%= Current.user.id %>">
     <div
       class="hidden fixed inset-0 bg-surface z-20 h-full w-full pt-[calc(env(safe-area-inset-top)+0.75rem)] pr-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] pl-3 overflow-y-auto transition-all duration-300"
+      id="mobile-account-sidebar-scroll"
+      data-controller="preserve-scroll"
       data-app-layout-target="mobileSidebar">
       <div class="mb-2">
         <%= icon("x", as_button: true, data: { action: "app-layout#closeMobileSidebar" }) %>
@@ -81,7 +83,13 @@
         <%= yield :sidebar %>
       <% else %>
         <div class="h-full flex flex-col">
-          <div class="overflow-y-auto grow">
+          <%# Clicking an account is a full Turbo Drive visit, which rebuilds this
+              list so the active-account highlight updates. preserve-scroll keeps
+              the scroll offset across that rebuild; data-turbo-permanent would
+              keep the offset too but freeze the highlight. Needs a stable id. %>
+          <div class="overflow-y-auto grow"
+               id="account-sidebar-scroll"
+               data-controller="preserve-scroll">
             <%= render "accounts/account_sidebar_tabs", family: Current.family, active_tab: @account_group_tab %>
           </div>
 

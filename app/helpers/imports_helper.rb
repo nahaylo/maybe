@@ -19,6 +19,7 @@ module ImportsHelper
       account: "Account",
       notes: "Notes",
       qty: "Quantity",
+      unit: "Unit",
       ticker: "Ticker",
       exchange: "Exchange",
       price: "Price",

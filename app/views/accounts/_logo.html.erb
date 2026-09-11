@@ -7,10 +7,22 @@
   "full" => "w-full h-full"
 } %>
 
-<% if account.plaid_account_id? && account.institution_domain.present? %>
+<%# DS::FilledIcon only knows sm/md/lg; "full" above is for the image branches. %>
+<% ds_size = DS::FilledIcon::SIZES.key?(size.to_sym) ? size : "md" %>
+
+<%# Color resolves pick > group > type default, so a per-account color still
+    applies when a group passes its own. %>
+<% hex_color = account.custom_color.presence || color || account.accountable.color %>
+
+<%# A picked icon outranks both logo sources -- the user chose it on purpose.
+    Absent a pick, an institution or uploaded logo wins, and account.icon falls
+    through to the accountable type's default glyph. %>
+<% picked_icon = account.lucide_icon.present? %>
+
+<% if !picked_icon && account.plaid_account_id? && account.institution_domain.present? %>
   <%= image_tag "https://logo.synthfinance.com/#{account.institution_domain}", class: "shrink-0 rounded-full #{size_classes[size]}" %>
-<% elsif account.logo.attached? %>
+<% elsif !picked_icon && account.logo.attached? %>
   <%= image_tag account.logo, class: "shrink-0 rounded-full #{size_classes[size]}" %>
 <% else %>
-  <%= render DS::FilledIcon.new(variant: :text, hex_color: color || account.accountable.color, text: account.name, size: size, rounded: true) %>
+  <%= render DS::FilledIcon.new(icon: account.icon, hex_color: hex_color, size: ds_size, rounded: true) %>
 <% end %>

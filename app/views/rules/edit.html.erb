@@ -1,6 +1,6 @@
 <%= link_to "Back to rules", rules_path %>
 
-<%= render DS::Dialog.new do |dialog| %>
+<%= render DS::Dialog.new(width: "lg") do |dialog| %>
   <%
     title = if @rule.name.present?
               "Edit #{@rule.resource_type} rule \"#{@rule.name}\""

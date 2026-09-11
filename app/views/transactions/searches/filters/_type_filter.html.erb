@@ -1,37 +1,28 @@
-<%# locals: (form:) %>
+<%# locals: (form:, types: nil, auto_submit: false) %>
+
+<%# Boxes show only what is actually selected. Nothing checked means no
+    filtering, so you start from everything and check the types you want to
+    narrow to. Checking all three is equivalent to none -- see
+    EntrySearch.type_condition. %>
+<% selected = Array(types) %>
+
+<%# The global filter menu applies on its own Apply button, so auto-submit is
+    opt-in -- submitting per checkbox there would close the menu mid-selection. %>
+<% checkbox_data = auto_submit ? { "auto-submit-form-target": "auto" } : {} %>
 
 <div class="p-2 space-y-3">
-  <div class="flex items-center gap-3" data-filter-name="income">
-    <%= form.check_box :types,
-                           {
-                             multiple: true,
-                             checked: @q[:types]&.include?("income"),
-                             class: "checkbox checkbox--light"
-                           },
-                           "income",
-                           nil %>
-    <%= form.label :types, t(".income"), value: "income", class: "text-sm text-primary" %>
-  </div>
-  <div class="flex items-center gap-3" data-filter-name="expense">
-    <%= form.check_box :types,
-                           {
-                             multiple: true,
-                             checked: @q[:types]&.include?("expense"),
-                             class: "checkbox checkbox--light"
-                           },
-                           "expense",
-                           nil %>
-    <%= form.label :types, t(".expense"), value: "expense", class: "text-sm text-primary" %>
-  </div>
-  <div class="flex items-center gap-3" data-filter-name="transfer">
-    <%= form.check_box :types,
-                           {
-                             multiple: true,
-                             checked: @q[:types]&.include?("transfer"),
-                             class: "checkbox checkbox--light"
-                           },
-                           "transfer",
-                           nil %>
-    <%= form.label :types, t(".transfer"), value: "transfer", class: "text-sm text-primary" %>
-  </div>
+  <% [ [ "income", t(".income") ], [ "expense", t(".expense") ], [ "transfer", t(".transfer") ] ].each do |value, label| %>
+    <div class="flex items-center gap-3" data-filter-name="<%= value %>">
+      <%= form.check_box :types,
+                         {
+                           multiple: true,
+                           checked: selected.include?(value),
+                           class: "checkbox checkbox--light",
+                           data: checkbox_data
+                         },
+                         value,
+                         nil %>
+      <%= form.label :types, label, value: value, class: "text-sm text-primary" %>
+    </div>
+  <% end %>
 </div>

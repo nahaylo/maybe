@@ -1,7 +1,7 @@
 module Entryable
   extend ActiveSupport::Concern
 
-  TYPES = %w[Valuation Transaction Trade]
+  TYPES = %w[Valuation Transaction Trade Mileage]
 
   def self.from_type(entryable_type)
     entryable_type.presence_in(TYPES).constantize

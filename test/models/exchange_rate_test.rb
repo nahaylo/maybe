@@ -7,7 +7,10 @@ class ExchangeRateTest < ActiveSupport::TestCase
   setup do
     @provider = mock
 
+    # find_or_fetch_rate picks a provider per currency pair, since no single
+    # provider covers them all (Frankfurter has no UAH, NBU is UAH-only).
     ExchangeRate.stubs(:provider).returns(@provider)
+    ExchangeRate.stubs(:provider_for).returns(@provider)
   end
 
   test "finds rate in DB" do

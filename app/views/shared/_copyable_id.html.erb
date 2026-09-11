@@ -1,0 +1,18 @@
+<%# locals: (id:, label:, copy_label:) %>
+
+<%# A read-only identifier row with a copy button, for cross-referencing a
+    record against the database or a rake task. Shared by the transaction and
+    transfer drawers, which display it in different sections but the same shape. %>
+<dl class="flex items-center gap-2 justify-between" data-controller="clipboard">
+  <dt class="text-secondary shrink-0"><%= label %></dt>
+  <dd class="flex items-center gap-1 min-w-0">
+    <code class="font-mono text-xs text-subdued truncate" data-clipboard-target="source"><%= id %></code>
+    <button type="button"
+            class="shrink-0 text-secondary hover:text-primary"
+            title="<%= copy_label %>"
+            data-action="clipboard#copy">
+      <span data-clipboard-target="iconDefault"><%= icon "copy", size: "sm" %></span>
+      <span data-clipboard-target="iconSuccess" class="hidden"><%= icon "check", size: "sm", color: "success" %></span>
+    </button>
+  </dd>
+</dl>

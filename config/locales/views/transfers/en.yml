@@ -8,6 +8,7 @@ en:
     form:
       amount: Amount
       date: Date
+      destination_amount: Amount received
       expense: Expense
       from: From
       income: Income
@@ -18,11 +19,14 @@ en:
     new:
       title: New transfer
     show:
+      copy_id: Copy ID
       delete: Remove transfer
       delete_subtitle: This removes the transfer.  It will not delete the underlying
         transactions.
       delete_title: Remove transfer?
       details: Details
+      exchange_rate: Exchange rate
+      id_label: ID
       note_label: Notes
       note_placeholder: Add a note to this transfer
       overview: Overview

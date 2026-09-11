@@ -1,8 +1,25 @@
-<%# locals: (account:, return_to: nil) %>
+<%# locals: (account:, return_to: nil, sortable: false) %>
 
-<%= turbo_frame_tag dom_id(account) do %>
+<%# draggable is set here rather than flipped on in JS: browsers decide
+    draggability before a mousedown handler runs. The controller cancels drags
+    that did not start on the handle. `block` because a custom element is
+    display: inline by default, which distorts the drag image. %>
+<%= turbo_frame_tag dom_id(account),
+      draggable: sortable ? "true" : nil,
+      class: sortable ? "block" : nil,
+      data: sortable ? { "sortable-target": "item", "sortable-id": account.id } : {} do %>
   <div class="p-4 flex items-center justify-between gap-3 group/account">
     <div class="flex items-center gap-3">
+      <% if sortable %>
+        <%# Rows are only draggable while the handle is held, so the links and
+            toggles inside the row stay usable. %>
+        <span class="cursor-grab active:cursor-grabbing text-subdued hover:text-primary -ml-1 touch-none select-none"
+              title="Drag to reorder"
+              data-action="mousedown->sortable#grabHandle touchstart->sortable#grabHandle">
+          <%= icon("grip-vertical", size: "sm", color: "current") %>
+        </span>
+      <% end %>
+
       <%= render "accounts/logo", account: account, size: "md" %>
 
       <div>

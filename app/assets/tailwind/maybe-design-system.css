@@ -323,8 +323,16 @@
         @apply py-2 rounded-md;
       }
 
+      /* The text colour is explicit because WebKit picks its own for a
+         selected option in a multi-select, which lands almost unreadable on
+         the inset background in dark mode. */
       option:checked {
-        @apply after:content-['\2713'] bg-container-inset after:text-gray-500 after:ml-2;
+        @apply after:content-['\2713'] bg-container-inset text-primary after:text-gray-500 after:ml-2;
+        /* WebKit greys a listbox selection whenever the control is not
+           focused, and that wins over `color` alone. currentColor picks up
+           whatever text-primary resolved to, so both themes stay correct
+           without restating the token. */
+        -webkit-text-fill-color: currentColor;
       }
 
       option:active,

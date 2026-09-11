@@ -6,6 +6,8 @@ json.amount transaction.entry.amount_money.format
 json.currency transaction.entry.currency
 json.name transaction.entry.name
 json.notes transaction.entry.notes
+json.quantity transaction.quantity&.to_s
+json.unit transaction.unit
 json.classification transaction.entry.classification
 
 # Account information

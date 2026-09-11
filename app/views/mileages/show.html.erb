@@ -1,0 +1,49 @@
+<%= render DS::Dialog.new(variant: "drawer") do |dialog| %>
+  <% dialog.with_header do %>
+    <div class="space-y-1">
+      <h3 class="font-medium text-2xl"><%= @entry.entryable.display_value %></h3>
+      <span class="text-sm text-secondary"><%= @entry.account.name %></span>
+    </div>
+  <% end %>
+
+  <% dialog.with_body do %>
+    <% dialog.with_section(title: "Overview", open: true) do %>
+      <div class="pb-4">
+        <% if @error_message.present? %>
+          <div class="mb-4"><%= render DS::Alert.new(message: @error_message, variant: :error) %></div>
+        <% end %>
+
+        <%= styled_form_with model: @entry, url: mileage_path(@entry), class: "space-y-2" do |form| %>
+          <%= form.date_field :date, label: true, required: true, max: Date.current %>
+
+          <div class="flex items-center gap-2">
+            <%= form.number_field :amount, label: "Odometer", required: true, min: 0, step: 1,
+                                  value: @entry.amount.to_i %>
+            <%= form.select :unit,
+                            Mileage::UNITS.map { |code, label| [ label, code ] },
+                            { label: "Unit", selected: @entry.entryable.unit } %>
+          </div>
+
+          <%= form.submit "Save" %>
+        <% end %>
+      </div>
+    <% end %>
+
+    <% dialog.with_section(title: "Settings") do %>
+      <div class="pb-4">
+        <div class="flex items-center justify-between gap-2 p-3">
+          <div class="text-sm space-y-1">
+            <h4 class="text-primary">Delete reading</h4>
+            <p class="text-secondary">This removes the reading. Nothing else is affected.</p>
+          </div>
+
+          <%= button_to "Delete",
+                mileage_path(@entry),
+                method: :delete,
+                class: "rounded-lg px-3 py-2 whitespace-nowrap text-red-500 text-sm font-medium border border-secondary",
+                data: { turbo_confirm: true, turbo_frame: "_top" } %>
+        </div>
+      </div>
+    <% end %>
+  <% end %>
+<% end %>

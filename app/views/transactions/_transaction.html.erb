@@ -1,6 +1,25 @@
 <%# locals: (entry:, balance_trend: nil, view_ctx: "global") %>
 
 <% transaction = entry.entryable %>
+<% income = entry.amount.negative? %>
+
+<%# Direction cues: transfers already read at a glance thanks to their badge, so
+    give income/expense the same shape + label + sign treatment. %>
+<% direction_label = if transaction.transfer?
+                       transaction.loan_payment? ? "Loan Payment" : "Transfer"
+                     else
+                       income ? "Income" : "Expense"
+                     end %>
+<% direction_icon = if transaction.transfer?
+                      "arrow-right-left"
+                    else
+                      income ? "arrow-down-left" : "arrow-up-right"
+                    end %>
+<% direction_color = if transaction.transfer?
+                       Category::TRANSFER_COLOR
+                     else
+                       income ? "var(--color-success)" : "var(--color-gray-500)"
+                     end %>
 
 <%= turbo_frame_tag dom_id(entry) do %>
   <%= turbo_frame_tag dom_id(transaction) do %>
@@ -23,12 +42,15 @@
                   class: "w-6 h-6 rounded-full",
                   loading: "lazy" %>
             <% else %>
-              <%= render DS::FilledIcon.new(
-                variant: :text,
-                text: entry.name,
-                size: "sm",
-                rounded: true
-              ) %>
+              <%= tag.span title: direction_label, class: "flex shrink-0" do %>
+                <%= render DS::FilledIcon.new(
+                  variant: :default,
+                  icon: direction_icon,
+                  hex_color: direction_color,
+                  size: "sm",
+                  rounded: true
+                ) %>
+              <% end %>
             <% end %>
 
             <div class="truncate">
@@ -60,7 +82,7 @@
 
                   <div class="flex items-center gap-1 flex-shrink-0">
                     <% if transaction.one_time? %>
-                      <span class="text-orange-500" title="One-time <%= entry.amount.negative? ? "income" : "expense" %> (excluded from averages)">
+                      <span class="text-orange-500" title="One-time <%= income ? "income" : "expense" %> (excluded from averages)">
                         <%= icon "asterisk", size: "sm", color: "current" %>
                       </span>
                     <% end %>
@@ -74,13 +96,18 @@
                 <div class="text-secondary text-xs font-normal hidden lg:block">
                   <% if transaction.transfer? %>
                     <span class="text-secondary">
-                      <%= transaction.loan_payment? ? "Loan Payment" : "Transfer" %> • <%= entry.account.name %>
+                      <%= direction_label %> • <%= entry.account.name %>
                     </span>
                   <% else %>
+                    <span class="text-secondary"><%= direction_label %> • </span>
                     <%= link_to entry.account.name,
                         account_path(entry.account, tab: "transactions"),
                         data: { turbo_frame: "_top" },
                         class: "hover:underline" %>
+                  <% end %>
+
+                  <% if transaction.quantity_display.present? %>
+                    <span class="text-secondary"> · <%= transaction.quantity_display %></span>
                   <% end %>
                 </div>
               </div>
@@ -94,9 +121,14 @@
       </div>
 
       <div class="col-span-2 ml-auto text-right">
-        <%= content_tag :p,
-            transaction.transfer? && view_ctx == "global" ? "+/- #{format_money(entry.amount_money.abs)}" : format_money(-entry.amount_money),
-            class: ["text-green-600": entry.amount.negative?] %>
+        <% amount_display = if transaction.transfer? && view_ctx == "global"
+                              "+/- #{format_money(entry.amount_money.abs)}"
+                            elsif income
+                              "+#{format_money(entry.amount_money.abs)}"
+                            else
+                              format_money(-entry.amount_money)
+                            end %>
+        <%= content_tag :p, amount_display, class: ["text-success": income] %>
       </div>
     </div>
   <% end %>

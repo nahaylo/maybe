@@ -11,7 +11,9 @@ class Entry < ApplicationRecord
   accepts_nested_attributes_for :entryable
 
   validates :date, :name, :amount, :currency, presence: true
-  validates :date, uniqueness: { scope: [ :account_id, :entryable_type ] }, if: -> { valuation? }
+  validates :date, uniqueness: { scope: [ :account_id, :entryable_type ] }, if: -> { valuation? || mileage? }
+  validate :mileage_belongs_to_a_vehicle, if: -> { mileage? }
+  validate :mileage_reading_moves_forward, if: -> { mileage? }
   validates :date, comparison: { greater_than: -> { min_supported_date } }
 
   scope :visible, -> {
@@ -77,6 +79,7 @@ class Entry < ApplicationRecord
         entryable_attributes: {
           category_id: bulk_update_params[:category_id],
           merchant_id: bulk_update_params[:merchant_id],
+          attributed_account_id: bulk_update_params[:attributed_account_id],
           tag_ids: bulk_update_params[:tag_ids]
         }.compact_blank
       }.compact_blank
@@ -96,4 +99,30 @@ class Entry < ApplicationRecord
       all.size
     end
   end
+
+  private
+    def mileage_belongs_to_a_vehicle
+      return if account.nil? || account.vehicle?
+
+      errors.add(:base, "Mileage can only be recorded on a vehicle account")
+    end
+
+    # An odometer only counts up. Without this the economy series produces
+    # negative distances, which silently corrupt every interval around them.
+    def mileage_reading_moves_forward
+      return if account.nil? || date.nil? || amount.nil?
+
+      siblings = account.entries.where(entryable_type: "Mileage").where.not(id: id)
+
+      previous = siblings.where(date: ...date).order(:date).last
+      following = siblings.where("entries.date > ?", date).order(:date).first
+
+      if previous && amount <= previous.amount
+        errors.add(:amount, "must be above the #{previous.amount.to_i} reading on #{previous.date}")
+      end
+
+      if following && amount >= following.amount
+        errors.add(:amount, "must be below the #{following.amount.to_i} reading on #{following.date}")
+      end
+    end
 end

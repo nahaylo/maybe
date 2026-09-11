@@ -42,7 +42,22 @@
             <dt class="text-secondary">Amount</dt>
             <dd class="font-medium text-red-500"><%= format_money @transfer.outflow_transaction.entry.amount_money * -1 %></dd>
           </dl>
+
+          <%= render "shared/copyable_id",
+                     id: @transfer.outflow_transaction.entry.id,
+                     label: t(".id_label"),
+                     copy_label: t(".copy_id") %>
         </div>
+
+        <% if @transfer.cross_currency? && @transfer.derived_exchange_rate.present? %>
+          <dl class="flex items-center gap-2 justify-between">
+            <dt class="text-secondary"><%= t(".exchange_rate") %></dt>
+            <dd class="font-medium">
+              1 <%= @transfer.from_account.currency %> =
+              <%= @transfer.derived_exchange_rate.to_s("F") %> <%= @transfer.to_account.currency %>
+            </dd>
+          </dl>
+        <% end %>
 
         <%= render "shared/ruler", classes: "my-2" %>
 
@@ -64,6 +79,11 @@
             <dt class="text-secondary">Amount</dt>
             <dd class="font-medium text-green-500">+<%= format_money @transfer.inflow_transaction.entry.amount_money * -1 %></dd>
           </dl>
+
+          <%= render "shared/copyable_id",
+                     id: @transfer.inflow_transaction.entry.id,
+                     label: t(".id_label"),
+                     copy_label: t(".copy_id") %>
         </div>
       </div>
     <% end %>
@@ -72,7 +92,12 @@
       <%= styled_form_with model: @transfer,
               data: { controller: "auto-submit-form" }, class: "space-y-2" do |f| %>
         <% if @transfer.categorizable? %>
-          <%= f.collection_select :category_id, @categories.alphabetically, :id, :name, { label: "Category", include_blank: "Uncategorized", selected: @transfer.outflow_transaction.category&.id }, "data-auto-submit-form-target": "auto" %>
+          <%= render "categories/select",
+                     form: f,
+                     categories: @categories.alphabetically,
+                     selected: @transfer.outflow_transaction.category&.id,
+                     blank_label: "Uncategorized",
+                     auto_submit: true %>
         <% end %>
 
         <%= f.text_area :notes,
