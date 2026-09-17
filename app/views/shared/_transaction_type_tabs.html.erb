@@ -15,7 +15,7 @@
     <%= tag.span t("shared.transaction_tabs.income") %>
   <% end %>
 
-  <%= link_to new_transfer_path,
+  <%= link_to new_transfer_path(account_id: account_id),
               data: { turbo_frame: :modal },
               class: "flex px-4 py-1 rounded-lg items-center space-x-2 justify-center text-sm #{active_tab == 'transfer' ? 'bg-container text-primary shadow-sm' : 'hover:bg-container text-subdued hover:text-primary hover:shadow-sm'}" do %>
     <%= icon "arrow-right-left" %>
