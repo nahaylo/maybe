@@ -38,4 +38,23 @@ class SecurityTest < ActiveSupport::TestCase
     assert_not duplicate.valid?
     assert_equal [ "has already been taken" ], duplicate.errors[:ticker]
   end
+
+  # No provider is configured, and imported prices land on trade days and
+  # report dates. The drawer showed "Unknown" for every holding because only
+  # today's price was ever looked up.
+  test "current price falls back to the latest price on file when today has none" do
+    Security.stubs(:provider).returns(nil)
+    security = Security.create!(ticker: "MARKED", offline: true)
+    security.prices.create!(date: 10.days.ago.to_date, price: 90, currency: "USD")
+    security.prices.create!(date: 3.days.ago.to_date, price: 95, currency: "USD")
+
+    assert_equal Money.new(95, "USD"), security.current_price
+  end
+
+  test "current price is nil when nothing is on file" do
+    Security.stubs(:provider).returns(nil)
+    security = Security.create!(ticker: "UNPRICED", offline: true)
+
+    assert_nil security.current_price
+  end
 end

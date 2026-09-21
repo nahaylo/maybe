@@ -31,13 +31,15 @@ class Transfer < ApplicationRecord
     end
   end
 
-  # Once transfer is destroyed, we need to mark the denormalized kind fields on the transactions
+  # The transactions carry a denormalized `kind` that says they are transfer
+  # legs. Reset it whenever the transfer goes, however it goes -- through
+  # `destroy!` from the UI, or through `dependent: :destroy` when one of the
+  # two transactions is deleted. The second path used to skip this and left
+  # the surviving leg marked as a transfer with nothing on the other side.
+  before_destroy :reset_transaction_kinds
+
   def destroy!
-    Transfer.transaction do
-      inflow_transaction.update!(kind: "standard")
-      outflow_transaction.update!(kind: "standard")
-      super
-    end
+    Transfer.transaction { super }
   end
 
   def confirm!
@@ -116,6 +118,14 @@ class Transfer < ApplicationRecord
   end
 
   private
+    def reset_transaction_kinds
+      [ inflow_transaction, outflow_transaction ].each do |transaction|
+        next if transaction.nil? || transaction.destroyed?
+
+        transaction.update_columns(kind: "standard", updated_at: Time.current)
+      end
+    end
+
     def transfer_has_different_accounts
       return unless inflow_transaction&.entry && outflow_transaction&.entry
       errors.add(:base, "Must be from different accounts") if to_account == from_account

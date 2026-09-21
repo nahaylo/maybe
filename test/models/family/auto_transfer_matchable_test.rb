@@ -18,6 +18,19 @@ class Family::AutoTransferMatchableTest < ActiveSupport::TestCase
     end
   end
 
+  # A dividend of a few dollars is within 5% of some card charge in the same
+  # week nearly every time; only plain transactions may become transfer legs.
+  test "does not match investment activity or one-time rows, even when the amounts agree" do
+    create_transaction(date: 1.day.ago.to_date, account: @depository, amount: 500)
+    create_transaction(date: Date.current, account: @credit_card, amount: -500, kind: "investment_activity")
+    create_transaction(date: 1.day.ago.to_date, account: @depository, amount: 700, kind: "one_time")
+    create_transaction(date: Date.current, account: @credit_card, amount: -700)
+
+    assert_no_difference -> { Transfer.count } do
+      @family.auto_match_transfers!
+    end
+  end
+
   test "auto-matches multi-currency transfers" do
     load_exchange_prices
     create_transaction(date: 1.day.ago.to_date, account: @depository, amount: 500)

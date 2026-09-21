@@ -29,10 +29,17 @@ module Family::AutoTransferMatchable
       )")
       .joins("JOIN accounts inflow_accounts ON inflow_accounts.id = inflow_candidates.account_id")
       .joins("JOIN accounts outflow_accounts ON outflow_accounts.id = outflow_candidates.account_id")
+      .joins("JOIN transactions inflow_transactions ON inflow_transactions.id = inflow_candidates.entryable_id")
+      .joins("JOIN transactions outflow_transactions ON outflow_transactions.id = outflow_candidates.entryable_id")
       .where("inflow_accounts.family_id = ? AND outflow_accounts.family_id = ?", self.id, self.id)
       .where("inflow_accounts.status IN ('draft', 'active')")
       .where("outflow_accounts.status IN ('draft', 'active')")
       .where("inflow_candidates.entryable_type = 'Transaction' AND outflow_candidates.entryable_type = 'Transaction'")
+      # Only plain transactions can turn out to be transfers. The transfer kinds
+      # already are one; one_time is a one-off by declaration; investment_activity
+      # is a dividend, tax or fee, which the cross-currency 5% tolerance would
+      # otherwise happily pair with any small card charge in the same week.
+      .where("inflow_transactions.kind = 'standard' AND outflow_transactions.kind = 'standard'")
       .where("
         (
           inflow_candidates.currency = outflow_candidates.currency AND

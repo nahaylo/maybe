@@ -61,12 +61,12 @@
                   <div>
                     <p class="text-secondary text-xs uppercase"><%= l(trade_entry.date, format: :long) %></p>
 
-                    <p><%= t(
-                      ".trade_history_entry",
-                      qty: trade_entry.trade.qty,
-                      security: trade_entry.trade.security.ticker,
-                      price: trade_entry.trade.price_money.format
-                    ) %></p>
+                    <% trade = trade_entry.trade %>
+                    <%= link_to trade_path(trade_entry), data: { turbo_frame: :drawer }, class: "text-primary hover:underline" do %>
+                      <%= trade.qty.negative? ? "Sold" : "Bought" %>
+                      <%= number_with_precision(trade.qty.abs, precision: 4, strip_insignificant_zeros: true) %>
+                      shares at <%= trade.price_money.format %>
+                    <% end %>
                   </div>
                 </li>
               <% end %>

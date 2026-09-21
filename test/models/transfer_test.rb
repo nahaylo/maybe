@@ -8,6 +8,17 @@ class TransferTest < ActiveSupport::TestCase
     @inflow = transactions(:transfer_in)
   end
 
+  # Deleting one leg destroys the transfer through `dependent: :destroy`,
+  # which bypasses `destroy!`. The other leg must still stop being a transfer.
+  test "the surviving leg goes back to standard when its partner is deleted" do
+    @inflow.update!(kind: "funds_movement")
+    @outflow.update!(kind: "funds_movement")
+
+    @outflow.entry.destroy
+
+    assert_equal "standard", @inflow.reload.kind
+  end
+
   test "transfer destroyed if either transaction is destroyed" do
     assert_difference [ "Transfer.count", "Transaction.count", "Entry.count" ], -1 do
       @outflow.entry.destroy

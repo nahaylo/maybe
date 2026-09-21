@@ -17,7 +17,11 @@ class Transaction < ApplicationRecord
     funds_movement: "funds_movement", # Movement of funds between accounts, excluded from budget analytics
     cc_payment: "cc_payment", # A CC payment, excluded from budget analytics (CC payments offset the sum of expense transactions)
     loan_payment: "loan_payment", # A payment to a Loan account, treated as an expense in budgets
-    one_time: "one_time" # A one-time expense/income, excluded from budget analytics
+    one_time: "one_time", # A one-time expense/income, excluded from budget analytics
+    # Income and costs thrown off by an investment account's holdings: dividends,
+    # withholding tax, interest, fees, commissions. Counted as ordinary income
+    # and expense, but never a transfer -- see Family::AutoTransferMatchable.
+    investment_activity: "investment_activity"
   }
 
   # Units of measure a transaction quantity can be expressed in. Keys are the

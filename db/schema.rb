@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.2].define(version: 2026_09_08_153949) do
+ActiveRecord::Schema[7.2].define(version: 2026_09_21_150000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pgcrypto"
   enable_extension "plpgsql"
@@ -309,6 +309,29 @@ ActiveRecord::Schema[7.2].define(version: 2026_09_08_153949) do
     t.index ["account_id", "security_id", "date", "currency"], name: "idx_on_account_id_security_id_date_currency_5323e39f8b", unique: true
     t.index ["account_id"], name: "index_holdings_on_account_id"
     t.index ["security_id"], name: "index_holdings_on_security_id"
+  end
+
+  create_table "ibkr_accounts", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.uuid "ibkr_item_id", null: false
+    t.uuid "account_id", null: false
+    t.string "ibkr_id", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.string "currency", null: false
+    t.index ["account_id"], name: "index_ibkr_accounts_on_account_id", unique: true
+    t.index ["ibkr_item_id", "ibkr_id", "currency"], name: "index_ibkr_accounts_on_ibkr_item_id_and_ibkr_id_and_currency", unique: true
+    t.index ["ibkr_item_id"], name: "index_ibkr_accounts_on_ibkr_item_id"
+  end
+
+  create_table "ibkr_items", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.uuid "family_id", null: false
+    t.string "name", null: false
+    t.string "access_token", null: false
+    t.string "query_id", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["family_id", "name"], name: "index_ibkr_items_on_family_id_and_name", unique: true
+    t.index ["family_id"], name: "index_ibkr_items_on_family_id"
   end
 
   create_table "impersonation_session_logs", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
@@ -896,6 +919,9 @@ ActiveRecord::Schema[7.2].define(version: 2026_09_08_153949) do
   add_foreign_key "family_exports", "families"
   add_foreign_key "holdings", "accounts"
   add_foreign_key "holdings", "securities"
+  add_foreign_key "ibkr_accounts", "accounts", on_delete: :cascade
+  add_foreign_key "ibkr_accounts", "ibkr_items"
+  add_foreign_key "ibkr_items", "families"
   add_foreign_key "impersonation_session_logs", "impersonation_sessions"
   add_foreign_key "impersonation_sessions", "users", column: "impersonated_id"
   add_foreign_key "impersonation_sessions", "users", column: "impersonator_id"
