@@ -3,7 +3,7 @@
 <%= turbo_frame_tag dom_id(holding) do %>
   <div class="grid grid-cols-12 items-center text-primary text-sm font-medium p-4">
     <div class="col-span-4 flex items-center gap-4">
-      <%= image_tag "https://logo.synthfinance.com/ticker/#{holding.ticker}", class: "w-9 h-9 rounded-full", loading: "lazy" %>
+      <%= render "securities/logo", ticker: holding.ticker %>
 
       <div class="space-y-0.5">
         <%= link_to holding.name, holding_path(holding), data: { turbo_frame: :drawer }, class: "hover:underline" %>

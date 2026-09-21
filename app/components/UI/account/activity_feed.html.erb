@@ -36,11 +36,15 @@
     </div>
 
     <div>
+      <%# The form submits inside this component's Turbo frame, which on its own
+          leaves the browser URL untouched. turbo_action: "advance" pushes the
+          filtered URL into history, so the per-page select (which rebuilds from
+          window.location) and a reload both keep the filter. %>
       <%= form_with url: account_path(account),
               id: "entries-search",
               scope: :q,
               method: :get,
-              data: { controller: "auto-submit-form" } do |form| %>
+              data: { controller: "auto-submit-form", turbo_action: "advance" } do |form| %>
         <div class="flex gap-2 mb-4">
           <div class="grow">
             <div class="flex items-center px-3 py-2 gap-2 border border-secondary rounded-lg focus-within:ring-gray-100 focus-within:border-gray-900">
@@ -70,7 +74,8 @@
             <% menu.with_custom_content do %>
               <div class="w-48">
                 <%= render partial: "transactions/searches/filters/type_filter",
-                           locals: { form: form, types: types, auto_submit: true } %>
+                           locals: { form: form, types: types, auto_submit: true,
+                                     include_trade: account.accountable_type == "Investment" } %>
               </div>
             <% end %>
           <% end %>
