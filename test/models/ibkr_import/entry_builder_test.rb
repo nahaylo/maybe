@@ -32,6 +32,7 @@ class IbkrImport::EntryBuilderTest < ActiveSupport::TestCase
     assert_equal 1.to_d, commission.amount
     assert_equal "Commission: Buy 3.0 shares of CAT", commission.name
     assert_equal "investment_activity", commission.transaction.kind
+    assert_equal entry.trade.security, commission.transaction.security
     assert_equal [ "ibkr-import" ], commission.transaction.tags.map(&:name)
   end
 
@@ -133,8 +134,17 @@ class IbkrImport::EntryBuilderTest < ActiveSupport::TestCase
     assert_equal(-16.to_d, offset.amount)
     assert_equal "Shares received: 0.219 IBKR", offset.name
     assert_equal "investment_activity", offset.transaction.kind
+    assert_equal entry.trade.security, offset.transaction.security
     assert_equal [ "ibkr-import" ], offset.transaction.tags.map(&:name)
     assert_equal 0, @account.entries.where("external_id LIKE ?", "ibkr-lot-%").sum(:amount), "a grant must not move cash"
+  end
+
+  test "a cash row without an exchange reuses the ticker's existing security instead of creating a twin" do
+    @builder.build!(trades: [ trade("ibkr-trade-7002") ], cash: [])
+
+    assert_no_difference "Security.count" do
+      @builder.build!(trades: [], cash: [ cash("ibkr-cash-5002") ])
+    end
   end
 
   test "re-running the same rows is a no-op" do
@@ -190,6 +200,9 @@ class IbkrImport::EntryBuilderTest < ActiveSupport::TestCase
     assert_equal %w[investment_activity], entries.except("ibkr-cash-5001").values.map { |e| e.transaction.kind }.uniq
     assert_equal "Dividend: VT", entries["ibkr-cash-5002"].name
     assert_equal(-4.5.to_d, entries["ibkr-cash-5002"].amount)
+    assert_equal "VT", entries["ibkr-cash-5002"].transaction.security.ticker
+    assert_equal entries["ibkr-cash-5002"].transaction.security, entries["ibkr-cash-5003"].transaction.security
+    assert_nil entries["ibkr-cash-5001"].transaction.security, "a deposit belongs to no holding"
     assert_equal "Withholding tax: VT", entries["ibkr-cash-5003"].name
     assert_equal 0.68.to_d, entries["ibkr-cash-5003"].amount
     assert_equal "Interest payment", entries["ibkr-cash-5004"].name

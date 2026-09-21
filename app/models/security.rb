@@ -4,6 +4,7 @@ class Security < ApplicationRecord
   before_validation :upcase_symbols
 
   has_many :trades, dependent: :nullify, class_name: "Trade"
+  has_many :transactions, dependent: :nullify
   has_many :prices, dependent: :destroy
 
   validates :ticker, presence: true

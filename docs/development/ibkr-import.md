@@ -206,6 +206,12 @@ Every cash row and every commission is a `Transaction` tagged
 **`ibkr-import`**, with no category: the rules engine assigns one on the next
 family sync, and the task queues that.
 
+Rows that belong to a holding -- dividends, payments in lieu, withholding
+tax, commissions, bonus-share offsets -- also carry `transactions.security_id`.
+That link is what lets the holding drawer show dividends, tax and fees per
+security over its whole life (`Holding::Performance`), alongside FIFO
+realised and unrealised gains worked out from the trades.
+
 Deposits and withdrawals are `standard` transactions, the same as the trade
 form's *Deposit* type creates, so the family's transfer auto-matching pairs
 them with the bank's side when it has a matching row. Everything else --

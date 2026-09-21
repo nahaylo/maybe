@@ -1,4 +1,6 @@
 <%= render DS::Dialog.new(variant: "drawer") do |dialog| %>
+  <% performance = @holding.performance %>
+
   <% dialog.with_header do %>
     <div class="flex items-center justify-between">
       <div>
@@ -21,24 +23,100 @@
 
           <div class="flex items-center justify-between text-sm">
             <dt class="text-secondary"><%= t(".current_market_price_label") %></dt>
-            <dd class="text-primary"><%= @holding.security.current_price ? format_money(@holding.security.current_price) : t(".unknown") %></dd>
+            <dd class="text-primary">
+              <% if performance.current_price %>
+                <%= format_money(performance.current_price) %>
+                <% latest = @holding.security.prices.where(date: ..Date.current).maximum(:date) %>
+                <% if latest && latest < Date.current %>
+                  <span class="text-secondary text-xs"><%= l(latest, format: :short) %></span>
+                <% end %>
+              <% else %>
+                <%= t(".unknown") %>
+              <% end %>
+            </dd>
           </div>
 
           <div class="flex items-center justify-between text-sm">
             <dt class="text-secondary"><%= t(".portfolio_weight_label") %></dt>
             <dd class="text-primary"><%= @holding.weight ? number_to_percentage(@holding.weight, precision: 2) : t(".unknown") %></dd>
           </div>
+        </dl>
 
+        <%= render "shared/ruler" %>
+
+        <%# The position you hold now: what it cost (FIFO) and what it is worth. %>
+        <dl class="space-y-3 px-3 py-2">
           <div class="flex items-center justify-between text-sm">
-            <dt class="text-secondary"><%= t(".avg_cost_label") %></dt>
-            <dd class="text-primary"><%= @holding.avg_cost ? format_money(@holding.avg_cost) : t(".unknown") %></dd>
+            <dt class="text-secondary">Position</dt>
+            <dd class="text-primary"><%= number_with_precision(performance.open_qty, precision: 4, strip_insignificant_zeros: true) %> shares</dd>
           </div>
 
           <div class="flex items-center justify-between text-sm">
-            <dt class="text-secondary"><%= t(".total_return_label") %></dt>
-            <dd style="color: <%= @holding.trend&.color %>;">
-              <%= @holding.trend ? render("shared/trend_change", trend: @holding.trend) : t(".unknown") %>
+            <dt class="text-secondary">Cost basis</dt>
+            <dd class="text-primary">
+              <%= format_money(performance.cost_basis) %>
+              <% if performance.open? %>
+                <span class="text-secondary text-xs"><%= format_money(performance.cost_basis_per_share) %> per share</span>
+              <% end %>
             </dd>
+          </div>
+
+          <div class="flex items-center justify-between text-sm">
+            <dt class="text-secondary">Market value</dt>
+            <dd class="text-primary"><%= performance.market_value ? format_money(performance.market_value) : t(".unknown") %></dd>
+          </div>
+
+          <div class="flex items-center justify-between text-sm">
+            <dt class="text-secondary">Unrealised gain</dt>
+            <dd>
+              <% if performance.unrealized %>
+                <%= render "shared/trend_change", trend: performance.unrealized %>
+              <% else %>
+                <span class="text-secondary">--</span>
+              <% end %>
+            </dd>
+          </div>
+        </dl>
+
+        <%= render "shared/ruler" %>
+
+        <%# Everything the holding has produced over its life, closed lots included. %>
+        <dl class="space-y-3 px-3 py-2">
+          <div class="flex items-center justify-between text-sm">
+            <dt class="text-secondary">Realised gain</dt>
+            <dd class="flex items-center gap-2">
+              <%= render "shared/trend_change", trend: Trend.new(current: performance.realized_gain, previous: Money.new(0, @holding.account.currency)) %>
+              <% if performance.closings.any? %>
+                <span class="text-secondary text-xs"><%= pluralize(performance.closings.size, "sale") %></span>
+              <% end %>
+            </dd>
+          </div>
+
+          <div class="flex items-center justify-between text-sm">
+            <dt class="text-secondary">Dividends</dt>
+            <dd class="text-primary"><%= performance.dividends.zero? ? "--" : "+#{format_money(performance.dividends)}" %></dd>
+          </div>
+
+          <% unless performance.other_income.zero? %>
+            <div class="flex items-center justify-between text-sm">
+              <dt class="text-secondary">Other income</dt>
+              <dd class="text-primary">+<%= format_money(performance.other_income) %></dd>
+            </div>
+          <% end %>
+
+          <div class="flex items-center justify-between text-sm">
+            <dt class="text-secondary">Withholding tax</dt>
+            <dd class="text-primary"><%= performance.withholding_tax.zero? ? "--" : "−#{format_money(performance.withholding_tax)}" %></dd>
+          </div>
+
+          <div class="flex items-center justify-between text-sm">
+            <dt class="text-secondary">Fees</dt>
+            <dd class="text-primary"><%= performance.fees.zero? ? "--" : "−#{format_money(performance.fees)}" %></dd>
+          </div>
+
+          <div class="flex items-center justify-between text-sm font-medium">
+            <dt class="text-primary"><%= t(".total_return_label") %></dt>
+            <dd><%= render "shared/trend_change", trend: performance.total_return_trend %></dd>
           </div>
         </dl>
       </div>
@@ -47,31 +125,61 @@
     <% dialog.with_section(title: t(".history"), open: true) do %>
       <div class="space-y-2">
         <div class="px-3 py-4">
-          <% if @holding.trades.any? %>
+          <% timeline = performance.timeline %>
+          <% if timeline.any? %>
             <ul class="space-y-2">
-              <% @holding.trades.each_with_index do |trade_entry, index| %>
+              <% timeline.each_with_index do |entry, index| %>
                 <li class="flex gap-4 text-sm space-y-1">
                   <div class="flex flex-col items-center gap-1.5 pt-2">
-                    <div class="rounded-full h-1.5 w-1.5 bg-gray-300"></div>
-                    <% unless index == @holding.trades.length - 1 %>
+                    <div class="rounded-full h-1.5 w-1.5 <%= entry.trade? ? 'bg-gray-300' : 'bg-alpha-black-200' %>"></div>
+                    <% unless index == timeline.length - 1 %>
                       <div class="h-12 w-px bg-alpha-black-200"></div>
                     <% end %>
                   </div>
 
                   <div>
-                    <p class="text-secondary text-xs uppercase"><%= l(trade_entry.date, format: :long) %></p>
+                    <p class="text-secondary text-xs uppercase"><%= l(entry.date, format: :long) %></p>
 
-                    <% trade = trade_entry.trade %>
-                    <%= link_to trade_path(trade_entry), data: { turbo_frame: :drawer }, class: "text-primary hover:underline" do %>
-                      <%= trade.qty.negative? ? "Sold" : "Bought" %>
-                      <%= number_with_precision(trade.qty.abs, precision: 4, strip_insignificant_zeros: true) %>
-                      shares at <%= trade.price_money.format %>
+                    <% if entry.trade? %>
+                      <% trade = entry.trade %>
+                      <% outcome = performance.outcome_for(entry) %>
+                      <%= link_to trade_path(entry), data: { turbo_frame: :drawer }, class: "text-primary hover:underline" do %>
+                        <%= trade.qty.negative? ? "Sold" : "Bought" %>
+                        <%= number_with_precision(trade.qty.abs, precision: 4, strip_insignificant_zeros: true) %>
+                        shares at <%= trade.price_money.format %>
+                      <% end %>
+
+                      <% if outcome&.sell? && outcome.closing %>
+                        <p class="text-xs" style="color: <%= outcome.gain.negative? ? '#db5a54' : '#4da568' %>;">
+                          Realised <%= outcome.gain.negative? ? "" : "+" %><%= format_money(outcome.gain) %><% if outcome.percent %> (<%= number_to_percentage(outcome.percent, precision: 1) %>)<% end %>
+                          <span class="text-secondary">against <%= format_money(Money.new(outcome.closing.cost_per_share, @holding.account.currency)) %> per share</span>
+                        </p>
+                      <% elsif outcome&.still_held? %>
+                        <p class="text-xs text-secondary">
+                          <% if outcome.remaining_qty < trade.qty %>
+                            <%= number_with_precision(outcome.remaining_qty, precision: 4, strip_insignificant_zeros: true) %> of <%= number_with_precision(trade.qty, precision: 4, strip_insignificant_zeros: true) %> still held
+                          <% else %>
+                            Still held
+                          <% end %>
+                          <% if outcome.gain %>
+                            · <span style="color: <%= outcome.gain.negative? ? '#db5a54' : '#4da568' %>;"><%= outcome.gain.negative? ? "" : "+" %><%= format_money(outcome.gain) %><% if outcome.percent %> (<%= number_to_percentage(outcome.percent, precision: 1) %>)<% end %></span>
+                          <% end %>
+                        </p>
+                      <% elsif outcome&.buy? && outcome.closed_on %>
+                        <p class="text-xs text-secondary">Closed <%= l(outcome.closed_on, format: :long) %></p>
+                      <% end %>
+                    <% else %>
+                      <%= link_to transaction_path(entry), data: { turbo_frame: :drawer }, class: "text-primary hover:underline" do %>
+                        <%= entry.name %>
+                      <% end %>
+                      <p class="text-xs <%= entry.amount.negative? ? 'text-primary' : 'text-secondary' %>">
+                        <%= entry.amount.negative? ? "+" : "−" %><%= format_money(entry.amount_money.abs) %>
+                      </p>
                     <% end %>
                   </div>
                 </li>
               <% end %>
             </ul>
-
           <% else %>
             <p class="text-secondary">No trade history available for this holding.</p>
           <% end %>

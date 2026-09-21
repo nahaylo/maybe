@@ -19,39 +19,53 @@ class HoldingTest < ActiveSupport::TestCase
     assert_in_delta expected_nvda_weight, @nvda.weight, 0.001
   end
 
-  test "calculates average cost basis" do
+  # Cost basis is FIFO over the shares still held, so two buys weight by
+  # quantity. The old figure was the plain average of the two prices.
+  test "calculates cost basis of the shares held, weighted by quantity" do
     create_trade(@amzn.security, account: @account, qty: 10, price: 212.00, date: 1.day.ago.to_date)
     create_trade(@amzn.security, account: @account, qty: 15, price: 216.00, date: Date.current)
 
     create_trade(@nvda.security, account: @account, qty: 5, price: 128.00, date: 1.day.ago.to_date)
     create_trade(@nvda.security, account: @account, qty: 30, price: 124.00, date: Date.current)
 
-    assert_equal Money.new((212.00 + 216.00).to_d / 2), @amzn.avg_cost
-    assert_equal Money.new((128.00 + 124.00).to_d / 2), @nvda.avg_cost
+    assert_in_delta (10 * 212.00 + 15 * 216.00) / 25, @amzn.avg_cost.amount.to_f, 0.0001
+    assert_in_delta (5 * 128.00 + 30 * 124.00) / 35, @nvda.avg_cost.amount.to_f, 0.0001
+    assert_equal "USD", @amzn.avg_cost.currency.iso_code
   end
 
-  test "calculates average cost basis from another currency" do
+  test "calculates cost basis from another currency" do
     create_trade(@amzn.security, account: @account, qty: 10, price: 212.00, date: 1.day.ago.to_date, currency: "CAD")
     create_trade(@amzn.security, account: @account, qty: 15, price: 216.00, date: Date.current, currency: "CAD")
 
-    create_trade(@nvda.security, account: @account, qty: 5, price: 128.00, date: 1.day.ago.to_date, currency: "CAD")
-    create_trade(@nvda.security, account: @account, qty: 30, price: 124.00, date: Date.current, currency: "CAD")
+    expected = Money.new((10 * 212.00 + 15 * 216.00).to_d / 25, "CAD").exchange_to("USD", fallback_rate: 1)
 
-    assert_equal Money.new((212.00 + 216.00).to_d / 2, "CAD").exchange_to("USD", fallback_rate: 1), @amzn.avg_cost
-    assert_equal Money.new((128.00 + 124.00).to_d / 2, "CAD").exchange_to("USD", fallback_rate: 1), @nvda.avg_cost
+    assert_in_delta expected.amount.to_f, @amzn.avg_cost.amount.to_f, 0.0001
+    assert_equal "USD", @amzn.avg_cost.currency.iso_code
   end
 
-  test "calculates total return trend" do
-    @amzn.stubs(:avg_cost).returns(Money.new(214.00))
-    @nvda.stubs(:avg_cost).returns(Money.new(126.00))
+  test "a sold lot drops out of the cost basis" do
+    create_trade(@amzn.security, account: @account, qty: 10, price: 212.00, date: 1.day.ago.to_date)
+    create_trade(@amzn.security, account: @account, qty: -10, price: 220.00, date: 1.day.ago.to_date)
+    create_trade(@amzn.security, account: @account, qty: 15, price: 216.00, date: Date.current)
 
-    # Gained $30, or 0.93%
+    assert_equal Money.new(216.00), @amzn.avg_cost
+    assert_equal Money.new(80.00), @amzn.performance.realized_gain
+  end
+
+  test "calculates unrealised gain of the position against its cost" do
+    create_trade(@amzn.security, account: @account, qty: 15, price: 214.00, date: 1.day.ago.to_date)
+    create_trade(@nvda.security, account: @account, qty: 30, price: 126.00, date: 1.day.ago.to_date)
+
+    # Latest prices are 216 and 124: gained $30 (0.9%), lost $60 (-1.6%)
     assert_equal Money.new(30), @amzn.trend.value
     assert_in_delta 0.9, @amzn.trend.percent, 0.001
 
-    # Lost $60, or -1.59%
     assert_equal Money.new(-60), @nvda.trend.value
-    assert_in_delta -1.6, @nvda.trend.percent, 0.001
+    assert_in_delta(-1.6, @nvda.trend.percent, 0.001)
+  end
+
+  test "no trades means no trend rather than an error" do
+    assert_nil @amzn.trend
   end
 
   private

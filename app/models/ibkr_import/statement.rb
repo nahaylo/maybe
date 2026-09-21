@@ -79,7 +79,7 @@ class IbkrImport::Statement
   end
 
   CashRow = Data.define(
-    :external_id, :account_id, :type, :symbol, :description, :currency, :date, :ib_amount
+    :external_id, :account_id, :type, :symbol, :description, :listing_exchange, :currency, :date, :ib_amount
   ) do
     # IBKR positive = money into the account; Maybe positive = outflow.
     def amount = -ib_amount
@@ -241,6 +241,7 @@ class IbkrImport::Statement
           type: node["type"].to_s.strip,
           symbol: node["symbol"].to_s.strip.upcase.presence,
           description: node["description"].to_s.strip,
+          listing_exchange: node["listingExchange"].presence,
           currency: node["currency"].to_s.upcase,
           date: parse_date(node["dateTime"].presence || node["settleDate"].presence || node["reportDate"]),
           ib_amount: decimal(node["amount"]) || 0.to_d

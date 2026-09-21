@@ -3,6 +3,9 @@ class Transaction < ApplicationRecord
 
   belongs_to :category, optional: true
   belongs_to :merchant, optional: true
+  # The holding a cash row belongs to: a dividend, its withholding tax, a
+  # trade's commission. Set by importers; nil for ordinary transactions.
+  belongs_to :security, optional: true
   # The asset this spend served (a vehicle, a property). Pure metadata: the
   # money stays in the paying account and no balance changes.
   belongs_to :attributed_account, class_name: "Account", optional: true

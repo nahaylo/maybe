@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.2].define(version: 2026_09_21_150000) do
+ActiveRecord::Schema[7.2].define(version: 2026_09_21_190000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pgcrypto"
   enable_extension "plpgsql"
@@ -831,10 +831,12 @@ ActiveRecord::Schema[7.2].define(version: 2026_09_21_150000) do
     t.string "unit"
     t.integer "mcc"
     t.uuid "attributed_account_id"
+    t.uuid "security_id"
     t.index ["attributed_account_id"], name: "index_transactions_on_attributed_account_id"
     t.index ["category_id"], name: "index_transactions_on_category_id"
     t.index ["kind"], name: "index_transactions_on_kind"
     t.index ["merchant_id"], name: "index_transactions_on_merchant_id"
+    t.index ["security_id"], name: "index_transactions_on_security_id"
   end
 
   create_table "transfers", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
@@ -957,6 +959,7 @@ ActiveRecord::Schema[7.2].define(version: 2026_09_21_150000) do
   add_foreign_key "transactions", "accounts", column: "attributed_account_id", on_delete: :nullify
   add_foreign_key "transactions", "categories", on_delete: :nullify
   add_foreign_key "transactions", "merchants"
+  add_foreign_key "transactions", "securities"
   add_foreign_key "transfers", "transactions", column: "inflow_transaction_id", on_delete: :cascade
   add_foreign_key "transfers", "transactions", column: "outflow_transaction_id", on_delete: :cascade
   add_foreign_key "users", "chats", column: "last_viewed_chat_id"

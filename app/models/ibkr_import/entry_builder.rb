@@ -188,7 +188,7 @@ class IbkrImport::EntryBuilder
         account,
         external_id: "#{row.external_id}-income", date: row.date, name: row.name,
         amount: -cost, currency: row.currency, notes: "Offsets the #{row.symbol} lot booked the same day",
-        kind: INVESTMENT_ACTIVITY_KIND
+        kind: INVESTMENT_ACTIVITY_KIND, security: security
       )
 
       seen << row.external_id << offset.external_id
@@ -210,7 +210,8 @@ class IbkrImport::EntryBuilder
         account,
         external_id: id, date: row.date, name: "Commission: #{row.name}",
         amount: row.commission_amount, currency: currency, notes: nil,
-        kind: INVESTMENT_ACTIVITY_KIND
+        kind: INVESTMENT_ACTIVITY_KIND,
+        security: row.fx? ? nil : security_for(row)
       )
       seen << id
 
@@ -237,7 +238,9 @@ class IbkrImport::EntryBuilder
         amount: row.amount, currency: row.currency, notes: row.description.presence,
         # A deposit may be the far leg of a transfer from the family's bank; a
         # dividend, tax, interest or fee never is.
-        kind: row.deposit_or_withdrawal? ? "standard" : INVESTMENT_ACTIVITY_KIND
+        kind: row.deposit_or_withdrawal? ? "standard" : INVESTMENT_ACTIVITY_KIND,
+        # A dividend or its tax belongs to the holding that paid it.
+        security: row.symbol.present? ? security_for(row) : nil
       )
       seen << row.external_id
       Outcome.new(row: row, status: :created_cash, entry: entry, detail: row.type)
@@ -268,7 +271,7 @@ class IbkrImport::EntryBuilder
       entry
     end
 
-    def create_transaction!(account, external_id:, date:, name:, amount:, currency:, notes:, kind: "standard")
+    def create_transaction!(account, external_id:, date:, name:, amount:, currency:, notes:, kind: "standard", security: nil)
       entry = account.entries.new(
         external_id: external_id,
         date: date,
@@ -277,7 +280,7 @@ class IbkrImport::EntryBuilder
         currency: currency,
         notes: notes,
         # No category: the rules engine assigns it on the next family sync.
-        entryable: Transaction.new(kind: kind)
+        entryable: Transaction.new(kind: kind, security: security)
       )
 
       entry.save!
@@ -321,6 +324,9 @@ class IbkrImport::EntryBuilder
       @securities[[ row.symbol, mic ]] ||= begin
         security = Security.find_by(ticker: row.symbol, exchange_operating_mic: mic) ||
                    (mic && Security.find_by(ticker: row.symbol, exchange_operating_mic: nil)) ||
+                   # A row with no exchange (cash rows often lack one) means the
+                   # ticker as such -- reuse whichever security carries it.
+                   (mic.nil? && Security.where(ticker: row.symbol).order(:created_at).first) ||
                    Security.create!(
                      ticker: row.symbol,
                      exchange_operating_mic: mic,
