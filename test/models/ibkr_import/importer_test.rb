@@ -40,6 +40,31 @@ class IbkrImport::ImporterTest < ActiveSupport::TestCase
     assert_match(/1 row\(s\) skipped: options/, @io.string)
   end
 
+  # Accounts made in the UI get a zero anchor two years back; a backfill from
+  # before that would fall outside the balance engine's window.
+  test "moves the opening anchor back when imported history predates it" do
+    @account.entries.delete_all
+    Account::OpeningBalanceManager.new(@account).set_opening_balance(balance: 0, date: Date.new(2026, 9, 10))
+
+    report = importer.import!.sole
+
+    # The oldest imported row is the bonus lot opened on 2026-02-13.
+    assert_equal({ @account => Date.new(2026, 2, 12) }, report.anchored)
+    assert_equal Date.new(2026, 2, 12), Account.find(@account.id).opening_anchor_date
+    assert_nil report.sync_window_start(@account), "the sync has to start from the new anchor"
+    assert_match(/opening anchor of .* moved to 2026-02-12/, @io.string)
+  end
+
+  test "leaves an opening anchor that already precedes the history alone" do
+    @account.entries.delete_all
+    Account::OpeningBalanceManager.new(@account).set_opening_balance(balance: 0, date: Date.new(2020, 1, 1))
+
+    report = importer.import!.sole
+
+    assert_empty report.anchored
+    assert_equal Date.new(2026, 7, 31), report.sync_window_start(@account)
+  end
+
   test "with a EUR account linked, the conversion becomes a transfer and the EUR deposit lands there" do
     eur = link_eur
 

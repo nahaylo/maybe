@@ -18,6 +18,67 @@ class Holding::PerformanceTest < ActiveSupport::TestCase
     commission(@buy2, 1.0)
   end
 
+  # NVDA in 2021: 2 bought, 4-for-1 split, 8 sold. The split changes the
+  # share count, not what was paid, so the sale realises against the full
+  # original cost and no lot is opened or closed by the split itself.
+  test "a split rescales the open lots and leaves their cost alone" do
+    @account.entries.delete_all
+    buy = trade(Date.new(2021, 7, 6), 2, 829.86)
+    split = @account.entries.create!(
+      date: Date.new(2021, 7, 19), name: "Split 4 for 1: TSLA", amount: 0, currency: "USD",
+      entryable: Trade.new(qty: 6, price: 0, currency: "USD", security: @security)
+    )
+    sell = trade(Date.new(2021, 11, 10), -8, 293.84)
+
+    perf = performance
+
+    assert_equal 0.to_d, perf.open_qty
+    closing = perf.closings.sole
+    assert_equal 1659.72.to_d, closing.cost
+    assert_equal 8 * 293.84.to_d - 1659.72.to_d, closing.gain
+    assert_equal :split, perf.outcome_for(split).kind
+    assert_predicate perf.outcome_for(buy), :buy?
+    assert_equal Date.new(2021, 11, 10), perf.outcome_for(buy).closed_on
+    assert_predicate perf.outcome_for(sell), :sell?
+  end
+
+  test "a split with part of the position still held keeps the cost per share consistent" do
+    @account.entries.delete_all
+    trade(Date.new(2021, 7, 6), 2, 800)
+    @account.entries.create!(
+      date: Date.new(2021, 7, 19), name: "Split 4 for 1: TSLA", amount: 0, currency: "USD",
+      entryable: Trade.new(qty: 6, price: 0, currency: "USD", security: @security)
+    )
+    trade(Date.new(2021, 11, 10), -3, 250)
+
+    perf = performance
+
+    assert_equal 5.to_d, perf.open_qty
+    assert_equal Money.new(1000, "USD"), perf.cost_basis          # 5 shares at 200 post-split
+    assert_equal Money.new(200, "USD"), perf.cost_basis_per_share
+    assert_equal 150.to_d, perf.closings.sole.gain                # 3 * (250 - 200)
+  end
+
+  test "a sold-out position reports its whole life" do
+    @account.entries.where(id: @buy2.id).destroy_all
+    Transaction.joins(:entry).where(entries: { account_id: @account.id }).where("entries.date > ?", Date.new(2026, 6, 1)).find_each { |t| t.entry.destroy! }
+
+    perf = performance
+
+    assert_predicate perf, :closed?
+    assert_equal 5.to_d, perf.sold_qty
+    assert_equal Money.new(1875, "USD"), perf.closed_cost
+    assert_equal Money.new(2137.8, "USD"), perf.proceeds
+    assert_equal Money.new(262.8, "USD"), perf.realized_trend.value
+    assert_equal 14.0, perf.realized_trend.percent
+    assert_equal Date.new(2026, 4, 1), perf.first_trade_date
+    assert_equal Date.new(2026, 5, 12), perf.last_sale_date
+  end
+
+  test "a position bought again is not closed" do
+    assert_not_predicate performance, :closed?
+  end
+
   test "the position and its cost basis are the lots still open, FIFO" do
     perf = performance
 

@@ -2,8 +2,8 @@
 #
 # A Flex report is one <FlexQueryResponse> holding one <FlexStatement> per
 # IBKR account the query covers. Within each, the sections this importer
-# reads are Trades, Cash Transactions and Open Positions -- anything else the
-# query happens to include is ignored.
+# reads are Trades, Cash Transactions, Open Positions and Corporate Actions --
+# anything else the query happens to include is ignored.
 #
 # Money keeps IBKR's sign convention until the last moment: IBKR is
 # positive-for-money-in, Maybe is positive-for-outflow, and every row flips it
@@ -19,6 +19,19 @@ class IbkrImport::Statement
   # The cash row types IBKR uses, for naming. Anything else keeps its type as
   # the name so it is at least recognisable.
   DEPOSIT_TYPE = "Deposits/Withdrawals".freeze
+
+  # Corporate action `type` codes, by what they do to a position. A split
+  # changes the share count and nothing else. An identity change (new ISIN,
+  # a consolidation) is reported as two legs, one of them under a temporary
+  # symbol such as "OKE.OLD" or "2682320D", that both mean the same holding.
+  SPLIT_ACTION_TYPES = %w[FS RS].freeze
+  IDENTITY_ACTION_TYPES = %w[IC RS].freeze
+  ACTION_LABELS = {
+    "FS" => "Split", "RS" => "Reverse split", "SO" => "Spin-off", "TC" => "Merger",
+    "TO" => "Tender offer", "RI" => "Rights issued", "SR" => "Rights subscribed",
+    "DW" => "Delisted", "SD" => "Stock dividend", "IC" => "Identity change",
+    "BM" => "Bond matured", "CD" => "Cash dividend", "CS" => "Contract spin-off"
+  }.freeze
 
   # IBKR's `listingExchange` codes are its own; Maybe stores ISO 10383
   # operating MICs. Best effort for the common venues -- an unmapped exchange
@@ -101,21 +114,57 @@ class IbkrImport::Statement
   # the report.
   LotRow = Data.define(
     :external_id, :account_id, :asset_category, :symbol, :description, :listing_exchange, :isin,
-    :currency, :date, :qty, :price, :cost, :originating_order_id
+    :currency, :date, :qty, :price, :cost, :originating_order_id, :originating_transaction_id
   ) do
     def supported? = IbkrImport::Statement::SUPPORTED_ASSET_CATEGORIES.include?(asset_category)
     def outside_trade? = originating_order_id.blank?
     def name = "Shares received: #{qty.to_s('F')} #{symbol}"
   end
 
-  Parsed = Data.define(:accounts, :trades, :cash, :positions, :lots) do
+  # One leg of a corporate action. `ticker` is the holding it belongs to:
+  # the row's own symbol, except that an identity change reports its legs
+  # under placeholder symbols, where the underlying named at the start of the
+  # description is the holding that actually exists. `value` is the market
+  # value of the shares that moved, signed like the quantity; `proceeds` is
+  # cash received, positive.
+  CorporateActionRow = Data.define(
+    :external_id, :account_id, :asset_category, :symbol, :ticker, :description, :listing_exchange,
+    :isin, :currency, :date, :type, :qty, :proceeds, :value, :realized, :action_id
+  ) do
+    def supported? = IbkrImport::Statement::SUPPORTED_ASSET_CATEGORIES.include?(asset_category)
+    def split? = IbkrImport::Statement::SPLIT_ACTION_TYPES.include?(type)
+    def identity? = IbkrImport::Statement::IDENTITY_ACTION_TYPES.include?(type)
+    def out? = qty.negative?
+    def in? = qty.positive?
+    def label = IbkrImport::Statement::ACTION_LABELS.fetch(type, type)
+
+    # "SPLIT 4 FOR 1" -> "4 for 1"
+    def ratio = description[/SPLIT\s+(\d+)\s+FOR\s+(\d+)/i] && "#{$1} for #{$2}"
+
+    # The symbol the description opens with: the holding the action started
+    # from (the parent of a spin-off, the target of a merger, the same stock
+    # for a split or an identity change).
+    def parent_symbol = description[/\A([A-Z0-9.]+)\(/, 1]
+
+    # What to call the trade this leg becomes.
+    def name
+      case type
+      when "FS", "RS" then [ label, ratio ].compact.join(" ") + ": #{ticker}"
+      when "SO" then "Spin-off: #{qty.abs.to_s('F')} #{ticker} from #{parent_symbol}"
+      when "TC", "TO" then out? ? "#{label}: #{qty.abs.to_s('F')} #{ticker} exchanged" : "#{label}: #{qty.abs.to_s('F')} #{ticker} received"
+      else "#{label}: #{qty.abs.to_s('F')} #{ticker}"
+      end
+    end
+  end
+
+  Parsed = Data.define(:accounts, :trades, :cash, :positions, :lots, :corporate_actions) do
     # Every currency money is booked in -- each needs a Maybe account.
     def currencies
       trade_currencies = trades.flat_map do |t|
         t.fx? ? [ t.fx_out_currency, t.fx_in_currency, t.commission_currency ] : [ t.currency, t.commission_currency ]
       end
 
-      (trade_currencies + cash.map(&:currency)).compact_blank.uniq.sort
+      (trade_currencies + cash.map(&:currency) + corporate_actions.map(&:currency)).compact_blank.uniq.sort
     end
 
     # Everything belonging to one IBKR account, in the same shape.
@@ -125,7 +174,8 @@ class IbkrImport::Statement
         trades: trades.select { |t| t.account_id == ibkr_id },
         cash: cash.select { |c| c.account_id == ibkr_id },
         positions: positions.select { |p| p.account_id == ibkr_id },
-        lots: lots.select { |l| l.account_id == ibkr_id }
+        lots: lots.select { |l| l.account_id == ibkr_id },
+        corporate_actions: corporate_actions.select { |a| a.account_id == ibkr_id }
       )
     end
   end
@@ -157,6 +207,7 @@ class IbkrImport::Statement
       cash = []
       positions = []
       lots = []
+      actions = []
 
       root.xpath("FlexStatements/FlexStatement").each do |statement|
         account_id = statement["accountId"]
@@ -194,6 +245,12 @@ class IbkrImport::Statement
             positions << position_row(node, account_id)
           end
         end
+
+        statement.xpath("CorporateActions/CorporateAction").each do |node|
+          next if node["levelOfDetail"] == "SUMMARY"
+
+          actions << action_row(node, account_id)
+        end
       end
 
       Parsed.new(
@@ -201,7 +258,8 @@ class IbkrImport::Statement
         trades: trades.sort_by { |t| [ t.date, t.external_id ] },
         cash: cash.sort_by { |c| [ c.date, c.external_id ] },
         positions: positions,
-        lots: lots.sort_by { |l| [ l.date, l.external_id ] }
+        lots: lots.sort_by { |l| [ l.date, l.external_id ] },
+        corporate_actions: actions.sort_by { |a| [ a.date, a.external_id ] }
       )
     end
 
@@ -265,7 +323,7 @@ class IbkrImport::Statement
 
       def lot_row(node, account_id)
         LotRow.new(
-          external_id: "ibkr-lot-#{node['originatingTransactionID'].presence || node['transactionID']}",
+          external_id: lot_external_id(node),
           account_id: account_id,
           asset_category: node["assetCategory"].to_s.upcase,
           symbol: node["symbol"].to_s.strip.upcase,
@@ -277,8 +335,58 @@ class IbkrImport::Statement
           qty: decimal(node["position"]),
           price: decimal(node["openPrice"]) || decimal(node["costBasisPrice"]),
           cost: decimal(node["costBasisMoney"]),
-          originating_order_id: node["originatingOrderID"].presence
+          originating_order_id: node["originatingOrderID"].presence,
+          originating_transaction_id: node["originatingTransactionID"].presence
         )
+      end
+
+      def action_row(node, account_id)
+        type = node["type"].to_s.strip.upcase
+        symbol = node["symbol"].to_s.strip.upcase
+        description = node["actionDescription"].presence || node["description"].to_s.strip
+
+        ticker = symbol
+        if IDENTITY_ACTION_TYPES.include?(type) && placeholder_symbol?(symbol)
+          ticker = description[/\A([A-Z0-9.]+)\(/, 1] || symbol
+        end
+
+        CorporateActionRow.new(
+          external_id: "ibkr-ca-#{node['transactionID']}",
+          account_id: account_id,
+          asset_category: node["assetCategory"].to_s.upcase,
+          symbol: symbol,
+          ticker: ticker,
+          description: description,
+          listing_exchange: node["listingExchange"].presence,
+          isin: node["isin"].presence,
+          currency: node["currency"].to_s.upcase,
+          date: parse_date(node["dateTime"].presence || node["reportDate"]),
+          type: type,
+          qty: decimal(node["quantity"]) || 0.to_d,
+          proceeds: decimal(node["proceeds"]) || 0.to_d,
+          value: decimal(node["value"]) || 0.to_d,
+          realized: decimal(node["fifoPnlRealized"]),
+          action_id: node["actionID"].presence || node["transactionID"]
+        )
+      end
+
+      # "OKE.OLD", "BLK.OLD", "2682320D", "20251208172441UL": the names IBKR
+      # gives the legs of an identity change, never a real listing.
+      def placeholder_symbol?(symbol)
+        symbol.end_with?(".OLD") || symbol.match?(/\A\d/)
+      end
+
+      # Lots that came out of a trade or a bonus name the transaction that
+      # opened them. Lots from corporate actions (a spin-off, a merger) carry
+      # no id at all, and a bare "ibkr-lot-" would make every such lot look
+      # like the same one. Fall back to contract + open time, which IBKR
+      # keeps stable from one report to the next.
+      def lot_external_id(node)
+        id = node["originatingTransactionID"].presence || node["transactionID"].presence
+        return "ibkr-lot-#{id}" if id
+
+        opened = node["openDateTime"].to_s.gsub(/\D/, "")
+        "ibkr-lot-#{node['conid'].presence || node['symbol']}-#{opened}"
       end
 
       def decimal(value)
@@ -313,6 +421,7 @@ class IbkrImport::Statement
       response = provider!.statement(query_id: query_id)
       raise response.error unless response.success?
 
+      archive(query_id, response.data)
       response.data
     end
   end
@@ -320,6 +429,22 @@ class IbkrImport::Statement
   def key_for(query_id, date)
     key = self.class.cache_key(query_id, date)
     scope.present? ? "#{scope.to_s.gsub(/[^A-Za-z0-9_-]/, '')}-#{key}" : key
+  end
+
+  # Files a statement by the period it actually covers, read off the raw XML
+  # so an unparseable document still leaves a trace on disk. Also used for
+  # statements downloaded by hand and seeded, which is how periods older than
+  # the query's own setting get in.
+  #
+  # @return [Pathname, nil] where it went, nil if the XML names no period
+  def archive(query_id, xml)
+    from = xml[/\bfromDate="(\d{8})"/, 1]
+    to = xml[/\btoDate="(\d{8})"/, 1]
+    return nil if from.nil? || to.nil?
+
+    key = "flex-#{query_id.to_s.gsub(/[^A-Za-z0-9_-]/, '')}-#{from}-#{to}"
+    key = "#{scope.to_s.gsub(/[^A-Za-z0-9_-]/, '')}-#{key}" if scope.present?
+    cache.archive(key, xml)
   end
 
   private

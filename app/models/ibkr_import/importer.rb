@@ -10,7 +10,7 @@
 # which caches by day, so a dry run and the real run that follows it cost one
 # request between them -- see IbkrImport::Cache.
 class IbkrImport::Importer
-  Report = Data.define(:ibkr_id, :links, :outcomes, :prices, :from, :to) do
+  Report = Data.define(:ibkr_id, :links, :outcomes, :prices, :from, :to, :anchored) do
     def accounts = links.map(&:account)
     def created = outcomes.select(&:created?)
     def by_status = outcomes.group_by(&:status).transform_values(&:size)
@@ -23,9 +23,13 @@ class IbkrImport::Importer
               .compact.uniq.sort
     end
 
-    # Whether the accounts need a sync afterwards: new entries, or new prices
-    # that revalue the holdings they already have.
-    def changed? = created.any? || prices.positive?
+    # Whether the accounts need a sync afterwards: new entries, new prices
+    # that revalue the holdings they already have, or an opening anchor that
+    # moved to let older history count.
+    def changed? = created.any? || prices.positive? || anchored.any?
+
+    # A sync after the anchor moved must start from it, not from the report.
+    def sync_window_start(account) = anchored.key?(account) ? nil : (from && from - 1)
   end
 
   attr_reader :family, :io, :cache, :date
@@ -103,7 +107,7 @@ class IbkrImport::Importer
       if statement_account.nil?
         io.puts "\n#{ibkr_id} -- not in this report. " \
                 "Check the Flex Query includes the account, or the id (see `rails ibkr:accounts`)."
-        return Report.new(ibkr_id: ibkr_id, links: group_links, outcomes: [], prices: 0, from: nil, to: nil)
+        return Report.new(ibkr_id: ibkr_id, links: group_links, outcomes: [], prices: 0, from: nil, to: nil, anchored: {})
       end
 
       builder = IbkrImport::EntryBuilder.new(
@@ -111,15 +115,36 @@ class IbkrImport::Importer
         accounts: group_links.to_h { |link| [ link.currency, link.account ] },
         force: force
       )
-      outcomes = builder.build!(trades: parsed.trades, cash: parsed.cash, lots: parsed.lots)
+      # Prices first: a split in the same statement carries the last price
+      # across the split day, and the trade-day closes are that last price.
       prices = builder.record_prices!(positions: parsed.positions, trades: parsed.trades)
+      outcomes = builder.build!(trades: parsed.trades, cash: parsed.cash, lots: parsed.lots,
+                                corporate_actions: parsed.corporate_actions)
 
       report = Report.new(
         ibkr_id: ibkr_id, links: group_links, outcomes: outcomes, prices: prices,
-        from: statement_account.from, to: statement_account.to
+        from: statement_account.from, to: statement_account.to,
+        anchored: realign_anchors(group_links.map(&:account))
       )
       print_report(report, item)
       report
+    end
+
+    # The balance engine starts at the account's opening anchor and ignores
+    # everything before it. An account created in the UI gets a zero anchor
+    # dated two years back, so history imported from before that would drop
+    # out of the balance, and cash on the anchor day would read as minus the
+    # holdings held that day. Move the anchor to the eve of the oldest entry.
+    #
+    # @return [Hash{Account => Date}] the accounts moved and where to
+    def realign_anchors(accounts)
+      accounts.each_with_object({}) do |account, moved|
+        oldest = account.entries.where.not(entryable_type: "Valuation").minimum(:date)
+        next if oldest.nil? || account.opening_anchor_date < oldest
+
+        manager = Account::OpeningBalanceManager.new(account)
+        moved[account] = oldest.prev_day if manager.set_opening_balance(balance: manager.opening_balance, date: oldest.prev_day).changes_made?
+      end
     end
 
     def print_accounts(item)
@@ -163,6 +188,10 @@ class IbkrImport::Importer
           outcome.entry.date, outcome.entry.amount.to_s("F"), outcome.entry.currency,
           outcome.entry.name.truncate(34), outcome.detail.to_s
         )
+      end
+
+      report.anchored.each do |account, date|
+        io.puts "  opening anchor of #{account.name} moved to #{date} so the older history counts"
       end
 
       report.missing_currencies.each do |currency|

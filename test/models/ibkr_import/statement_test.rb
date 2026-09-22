@@ -151,6 +151,61 @@ class IbkrImport::StatementTest < ActiveSupport::TestCase
     assert_nil IbkrImport::Statement.parse_date("")
   end
 
+  # Spin-off and merger lots name no transaction at all; before this they all
+  # collapsed onto one id and only the first was ever imported.
+  test "lots without any transaction id are told apart by contract and open time" do
+    xml = <<~XML
+      <FlexQueryResponse queryName="q" type="AF"><FlexStatements count="1">
+      <FlexStatement accountId="U1" fromDate="20220103" toDate="20221230" period="" whenGenerated="20260922;120000">
+      <OpenPositions>
+      <OpenPosition accountId="U1" currency="USD" assetCategory="STK" symbol="WBD" conid="554208351" reportDate="20221230" position="9.6767" openPrice="28.1165" costBasisMoney="272.08" levelOfDetail="LOT" openDateTime="20210614;121145" originatingOrderID="" originatingTransactionID="" />
+      <OpenPosition accountId="U1" currency="USD" assetCategory="STK" symbol="MICC" conid="836365978" reportDate="20221230" position="1" openPrice="13.38" costBasisMoney="13.38" levelOfDetail="LOT" openDateTime="20220209;155602" originatingOrderID="" originatingTransactionID="" />
+      </OpenPositions>
+      </FlexStatement></FlexStatements></FlexQueryResponse>
+    XML
+
+    lots = IbkrImport::Statement.parse(xml).lots
+
+    assert_equal [ "ibkr-lot-554208351-20210614121145", "ibkr-lot-836365978-20220209155602" ], lots.map(&:external_id)
+    assert lots.all?(&:outside_trade?)
+  end
+
+  test "corporate action legs keep IBKR's type, quantity, value and cash, dated when they posted" do
+    parsed = IbkrImport::Statement.parse(file_fixture("ibkr/corporate_actions.xml").read)
+    by_id = parsed.corporate_actions.index_by(&:external_id)
+
+    split = by_id["ibkr-ca-17102223584"]
+    assert_equal "FS", split.type
+    assert_equal "NVDA", split.ticker
+    assert_equal 6.to_d, split.qty
+    assert_equal Date.new(2021, 7, 19), split.date
+    assert_predicate split, :split?
+    assert_equal "Split 4 for 1: NVDA", split.name
+
+    out, inn = by_id["ibkr-ca-25117820406"], by_id["ibkr-ca-25117820402"]
+    assert_equal [ "TC", -10.to_d, 250.to_d, -690.to_d ], [ out.type, out.qty, out.proceeds, out.value ]
+    assert_equal [ "OKE", 6.67.to_d, 443.8218.to_d ], [ inn.ticker, inn.qty, inn.value ]
+    assert_equal out.action_id, inn.action_id
+    assert_equal "Merger: 10.0 MMP exchanged", out.name
+    assert_equal "Merger: 6.67 OKE received", inn.name
+
+    spin = by_id["ibkr-ca-20121318699"]
+    assert_equal "Spin-off: 9.6767 WBD from T", spin.name
+  end
+
+  # An identity change is two legs, one under a placeholder symbol. Both are
+  # the same holding, which is what `ticker` says.
+  test "legs of an identity change resolve their placeholder symbols to the real holding" do
+    parsed = IbkrImport::Statement.parse(file_fixture("ibkr/corporate_actions.xml").read)
+    by_id = parsed.corporate_actions.index_by(&:external_id)
+
+    assert_equal "OKE", by_id["ibkr-ca-42674756990"].ticker # symbol 2682320D
+    assert_equal "OKE", by_id["ibkr-ca-42674756997"].ticker # symbol OKE.OLD
+    assert_equal "UL", by_id["ibkr-ca-36677668055"].ticker  # symbol 20251208172441UL
+    assert_equal "UL", by_id["ibkr-ca-36677668049"].ticker
+    assert_equal "WBD", by_id["ibkr-ca-20121318699"].ticker, "a spin-off's own symbol is the new holding"
+  end
+
   test "refuses a document that is not a Flex statement" do
     assert_raises(IbkrImport::Error) { IbkrImport::Statement.parse("<html><body>login</body></html>") }
   end
@@ -168,6 +223,13 @@ class IbkrImport::StatementTest < ActiveSupport::TestCase
     assert_equal 7, first.trades.size
     assert_equal first.trades.size, second.trades.size
     assert_predicate root.join("item-1-flex-123456-20260921.xml"), :exist?
+
+    # A second copy filed by the statement's own period survives a backfill
+    # that re-fetches the same query several times in one day.
+    period = first.accounts.first
+    archived = root.join("statements", "item-1-flex-123456-#{period.from.strftime('%Y%m%d')}-#{period.to.strftime('%Y%m%d')}.xml")
+    assert_predicate archived, :exist?
+    assert_equal file_fixture("ibkr/flex.xml").read, archived.read
   ensure
     FileUtils.remove_entry(root) if root
   end

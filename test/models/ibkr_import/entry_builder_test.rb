@@ -254,7 +254,97 @@ class IbkrImport::EntryBuilderTest < ActiveSupport::TestCase
     assert_equal 233.1.to_d, securities(:aapl).prices.find_by(date: Date.new(2026, 9, 19)).price
   end
 
+  # ---- corporate actions -------------------------------------------------
+
+  test "a split adds shares at price zero and carries the last price across, scaled" do
+    security = Security.create!(ticker: "NVDA", exchange_operating_mic: "XNAS", offline: true)
+    buy(security, Date.new(2021, 7, 6), 2, 829.86)
+    security.prices.create!(date: Date.new(2021, 7, 6), price: 829.86, currency: "USD")
+
+    outcome = @builder.build!(trades: [], cash: [], corporate_actions: action_rows("ibkr-ca-17102223584")).sole
+
+    assert_equal :created_action, outcome.status
+    entry = outcome.entry
+    assert_equal "Split 4 for 1: NVDA", entry.name
+    assert_equal 6.to_d, entry.trade.qty
+    assert_equal 0.to_d, entry.trade.price
+    assert_equal 0.to_d, entry.amount, "a split moves no cash"
+    assert_equal security, entry.trade.security
+    assert_equal 8.to_d, @account.trades.where(security: security).sum(:qty)
+    assert_equal 207.465.to_d, security.prices.find_by(date: Date.new(2021, 7, 19)).price
+  end
+
+  test "a merger sells the old shares at IBKR's value and buys the new ones for what was not paid in cash" do
+    mmp = Security.create!(ticker: "MMP", exchange_operating_mic: nil, offline: true)
+    buy(mmp, Date.new(2021, 7, 29), 10, 47.2)
+
+    outcomes = @builder.build!(trades: [], cash: [], corporate_actions: action_rows("ibkr-ca-25117820406", "ibkr-ca-25117820402"))
+
+    assert_equal %i[created_action created_action], outcomes.map(&:status)
+    out, inn = outcomes.map(&:entry)
+    assert_equal -10.to_d, out.trade.qty
+    assert_equal 69.to_d, out.trade.price
+    assert_equal -690.to_d, out.amount
+    assert_equal 6.67.to_d, inn.trade.qty
+    assert_equal 65.967.to_d, inn.trade.price
+    assert_equal "OKE", inn.trade.security.ticker
+    assert_equal 250.to_d, -(out.amount + inn.amount).round(2), "net cash equals the 25 USD per share IBKR paid out"
+  end
+
+  test "an identity change whose legs cancel books nothing" do
+    outcomes = @builder.build!(trades: [], cash: [], corporate_actions: action_rows("ibkr-ca-42674756990", "ibkr-ca-42674756997"))
+
+    assert_equal [ :skipped_noop ], outcomes.map(&:status)
+    assert_equal 0, @account.entries.where("external_id LIKE 'ibkr-ca-%'").count
+  end
+
+  test "a consolidation reported as two legs becomes one reverse split on the real holding" do
+    ul = Security.create!(ticker: "UL", exchange_operating_mic: "XNYS", offline: true)
+    buy(ul, Date.new(2022, 2, 9), 5, 50)
+    ul.prices.create!(date: Date.new(2025, 12, 1), price: 60, currency: "USD")
+
+    outcome = @builder.build!(trades: [], cash: [], corporate_actions: action_rows("ibkr-ca-36677668055", "ibkr-ca-36677668049")).sole
+
+    assert_equal :created_action, outcome.status
+    assert_equal "ibkr-ca-161588351-UL", outcome.entry.external_id
+    assert_equal "Reverse split 8 for 9: UL", outcome.entry.name
+    assert_equal -0.5556.to_d, outcome.entry.trade.qty
+    assert_equal ul, outcome.entry.trade.security
+    assert_equal 67.5007.to_d, ul.prices.find_by(date: Date.new(2025, 12, 8)).price # 60 * 5 / 4.4444, rounded
+  end
+
+  test "a lot left behind by a corporate action is not booked again as a bonus" do
+    @builder.build!(trades: [], cash: [], corporate_actions: action_rows("ibkr-ca-20121318699"))
+    lot = @parsed.lots.find(&:outside_trade?).with(symbol: "WBD", listing_exchange: "NASDAQ", external_id: "ibkr-lot-554208351-20210614121145", originating_transaction_id: nil)
+
+    outcome = @builder.build!(trades: [], cash: [], lots: [ lot ]).sole
+
+    assert_equal :skipped_action, outcome.status
+  end
+
+  test "action rows are idempotent" do
+    rows = action_rows("ibkr-ca-17102223584")
+    Security.create!(ticker: "NVDA", exchange_operating_mic: "XNAS", offline: true)
+
+    @builder.build!(trades: [], cash: [], corporate_actions: rows)
+    outcome = builder.build!(trades: [], cash: [], corporate_actions: rows).sole
+
+    assert_equal :skipped_imported, outcome.status
+  end
+
   private
+    def buy(security, date, qty, price)
+      @account.entries.create!(
+        date: date, name: "Buy #{qty} #{security.ticker}", amount: qty * price, currency: "USD",
+        entryable: Trade.new(qty: qty, price: price, currency: "USD", security: security)
+      )
+    end
+
+    def action_rows(*ids)
+      rows = IbkrImport::Statement.parse(file_fixture("ibkr/corporate_actions.xml").read).corporate_actions.index_by(&:external_id)
+      ids.map { |id| rows.fetch(id) }
+    end
+
     def builder(eur: nil, force: false)
       accounts = { "USD" => @account }
       accounts["EUR"] = eur if eur

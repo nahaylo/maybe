@@ -41,11 +41,12 @@ with all fields:
 | Trades (level: *Executions*) | one Trade entry per execution, plus a commission Transaction; conversions become transfers |
 | Cash Transactions (level: *Detail*) | deposits, withdrawals, dividends, withholding tax, interest, fees |
 | Open Positions (level: *Summary and Lot*) | summaries give IBKR's mark price per security on the report date; lots reveal shares that arrived without a trade |
+| Corporate Actions (level: *Detail*) | splits, spin-offs, mergers, rights, identity changes -- without it a split looks like a short sale |
 
 Leave the query's format settings at their defaults, because the parser
 depends on them: date format `yyyyMMdd`, time format `HHmmss`, date/time
-separator `;`. Other sections (Corporate Actions, Transfers, Statement of
-Funds) may be ticked but are not read.
+separator `;`. Other sections (Transfers, Statement of Funds) may be ticked
+but are not read.
 
 Note the **Query ID** shown in the list afterwards.
 
@@ -122,8 +123,29 @@ Flags, all optional:
 
 Reports are cached under `storage/ibkr/`, one file per connection, query and
 **day**, so a dry run and the real run that follows it cost one request.
-`storage/` is a named Docker volume, so the cache survives
-`docker compose up -d`.
+Every fetched or seeded statement is also filed under
+`storage/ibkr/statements/` by the period it covers, so the raw history stays
+replayable even when several periods are pulled on one day. `storage/` is a
+named Docker volume, so both survive `docker compose up -d`.
+
+### Backfilling years before the query's period
+
+The saved period on a Flex Query offers rolling windows only (*Last 365
+Calendar Days* is the widest) and the Web Service takes no dates, so history
+older than a year cannot be fetched by the task. Client Portal can run the
+same query by hand with a **Custom Date Range** of up to 365 days, which
+downloads the XML. Seed each download, then import from the cache:
+
+```bash
+docker compose cp ~/Downloads/2021.xml web:/rails/tmp/ibkr-2021.xml
+bin/rails ibkr:seed FIXTURE=tmp/ibkr-2021.xml ITEM=ib
+bin/rails ibkr:import OFFLINE=1 ONLY=U1234567
+```
+
+Oldest year first; overlap between ranges is harmless because every row is
+keyed by IBKR's own ids. Open Positions in a past-period report still describe
+today's positions, so lot-derived rows repeat in every pass and are skipped
+after the first. Finish with a normal fetch under *Last 365 Calendar Days*.
 
 ## One account per currency
 
@@ -284,6 +306,26 @@ Two layers, as in the Monobank importer:
 
 `FORCE=1` overrides layer 2.
 
+## Corporate actions
+
+Each leg of an action becomes a Trade, so the share count in the holding
+follows IBKR's. How it is priced depends on what moved:
+
+| Action | Booked as |
+| --- | --- |
+| Split, reverse split (`FS`, `RS`) | quantity change at price 0, named "Split 4 for 1: NVDA"; `Holding::Performance` rescales the open lots instead of opening one, so cost basis and later FIFO sales stay right. The last stored price is carried onto the split day, scaled, so the holding is not valued at the old price for the new count |
+| Spin-off, rights issue (`SO`, `RI`) | new shares at price 0: the money spent stays with the parent, so the pair's total cost is unchanged |
+| Merger, tender (`TC`, `TO`) | old shares sold at IBKR's value for them, new shares bought for that value less the cash received, so cash moves by exactly the cash part and the gain realised matches IBKR's |
+| Identity change (`IC`), consolidation legs | legs under placeholder symbols (`OKE.OLD`, `2682320D`) resolve to the real holding and are netted; a pure ISIN change books nothing |
+| Delisting (`DW`) | shares sold at price 0, realising the loss |
+| Anything else | quantity at price 0, cash as a linked transaction, named with the raw type so it can be checked |
+
+A lot in Open Positions with no originating order is treated as a bonus only
+when no corporate action trade exists for the security; otherwise it is the
+same shares seen twice. A ticker rename (`FS` to `META`) is not recognised as
+a move of cost basis: the old ticker closes at zero and the new one starts at
+zero cost, which keeps the account total right but skews the two holdings.
+
 ## Testing without the API
 
 A Flex token is personal and the report is a real brokerage statement, so
@@ -312,7 +354,5 @@ bin/rails ibkr:import OFFLINE=1 DRY_RUN=1
   they matter to the balance.
 - **A single sidebar line per IBKR account.** Each currency is its own Maybe
   account; grouping them visually would be a UI change.
-- **Corporate actions** (splits, mergers). Not in the sections read; a split
-  would show as a wrong quantity until fixed by hand.
 - **Daily price history.** Only report-date marks and trade-day closes. A
   price provider would fill the days between; none is wired up.

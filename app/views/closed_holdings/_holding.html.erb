@@ -1,0 +1,42 @@
+<%# locals: (holding:) %>
+<% performance = holding.performance %>
+
+<div class="grid grid-cols-12 items-center text-primary text-sm font-medium p-4">
+  <div class="col-span-4 flex items-center gap-4">
+    <%= render "securities/logo", ticker: holding.ticker %>
+
+    <div class="space-y-0.5">
+      <%= link_to holding.name, holding_path(holding), data: { turbo_frame: :drawer }, class: "hover:underline" %>
+      <%= tag.p holding.ticker, class: "text-secondary text-xs uppercase" %>
+    </div>
+  </div>
+
+  <div class="col-span-2 text-right">
+    <%= tag.p "#{number_with_precision(performance.sold_qty, precision: 4, strip_insignificant_zeros: true)} shares" %>
+    <% if performance.first_trade_date && performance.last_sale_date %>
+      <%= tag.p "#{l(performance.first_trade_date, format: :short)} – #{l(performance.last_sale_date, format: :short)}", class: "font-normal text-secondary" %>
+    <% end %>
+  </div>
+
+  <div class="col-span-2 text-right">
+    <%= tag.p format_money(performance.closed_cost) %>
+    <%= tag.p "sold for #{format_money(performance.proceeds)}", class: "font-normal text-secondary" %>
+  </div>
+
+  <div class="col-span-2 text-right">
+    <% trend = performance.realized_trend %>
+    <%= tag.p format_money(trend.value), style: "color: #{trend.color};" %>
+    <% if trend.percent %>
+      <%= tag.p "(#{number_to_percentage(trend.percent, precision: 1)})", style: "color: #{trend.color};" %>
+    <% end %>
+  </div>
+
+  <div class="col-span-2 text-right">
+    <% total = performance.total_return_trend %>
+    <%= tag.p format_money(total.value), style: "color: #{total.color};" %>
+    <% net_dividends = performance.dividends - performance.withholding_tax %>
+    <% unless net_dividends.zero? %>
+      <%= tag.p "incl. #{format_money(net_dividends)} dividends", class: "font-normal text-secondary" %>
+    <% end %>
+  </div>
+</div>

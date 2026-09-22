@@ -9,10 +9,16 @@
 # total return is everything the holding has produced over its whole life --
 # including periods when the position was closed and reopened.
 #
+# A split is a trade at price zero whose name says so (the IBKR importer
+# books them like that). It changes how many shares the open lots hold, not
+# what they cost: the lots are rescaled and no lot is opened or closed.
+#
 # Everything is expressed in the account's currency. A trade or cash row in
 # another currency is converted at its own date, like the balance engine does.
 class Holding::Performance
   Lot = Struct.new(:entry, :qty, :price) # qty still open, price per share
+
+  SPLIT_NAME = /\bsplit\b/i
 
   Closing = Data.define(:sell_entry, :qty, :proceeds, :cost, :lots) do
     def gain = proceeds - cost
@@ -79,6 +85,21 @@ class Holding::Performance
 
   def closings = @closings
 
+  # ---- the position's whole life, for a sold-out holding
+
+  def closed? = !open? && @closings.any?
+  def sold_qty = @closings.sum(&:qty)
+  def proceeds = money(@closings.sum(&:proceeds))
+  # What the shares that were sold had cost, FIFO.
+  def closed_cost = money(@closings.sum(&:cost))
+  def first_trade_date = trades.first&.date
+  def last_sale_date = @closings.map { |c| c.sell_entry.date }.max
+
+  # Proceeds against cost: value is the realised gain, percent its return.
+  def realized_trend
+    Trend.new(current: proceeds, previous: closed_cost)
+  end
+
   # The linked cash rows, sorted into what they are. A reversed dividend stays
   # a dividend and a refunded tax stays tax, so each line nets out on its own
   # instead of showing up as income of another kind.
@@ -139,7 +160,9 @@ class Holding::Performance
         qty = trade.qty
         price = convert(Money.new(trade.price, trade.currency), entry.date).amount
 
-        if qty.positive?
+        if split?(entry)
+          rescale(qty)
+        elsif qty.positive?
           @lots << Lot.new(entry, qty, price)
         elsif qty.negative?
           @closings << close(entry, qty.abs, price, lot_closed_on)
@@ -149,8 +172,10 @@ class Holding::Performance
       trades.each do |entry|
         trade = entry.entryable
 
-        if trade.qty.positive?
-          lot = @lots.find { |l| l.entry.id == entry.id }
+        if split?(entry)
+          @outcomes[entry.id] = Outcome.new(kind: :split, closing: nil, remaining_qty: 0.to_d, closed_on: nil, gain: nil, percent: nil)
+        elsif trade.qty.positive?
+          lot = @lots.find { |l| l.entry&.id == entry.id }
           remaining = lot ? lot.qty : 0.to_d
           gain = remaining.positive? && current_price ? (current_price.amount - lot.price) * remaining : nil
           @outcomes[entry.id] = Outcome.new(
@@ -170,6 +195,30 @@ class Holding::Performance
       @lots.reject! { |lot| lot.qty.zero? }
     end
 
+    # A split with an open position: the change in share count is spread
+    # over the open lots in proportion, and each lot's price moves the other
+    # way so its cost stays put. With nothing open (history that starts after
+    # the buy) the shares are booked as a free lot instead.
+    def split?(entry)
+      entry.entryable.price.to_d.zero? && entry.name.to_s.match?(SPLIT_NAME)
+    end
+
+    def rescale(delta)
+      open = @lots.select { |lot| lot.qty.positive? }
+      total = open.sum(&:qty)
+
+      if total.zero? || (total + delta) <= 0
+        @lots << Lot.new(nil, delta, 0.to_d) if delta.positive?
+        return
+      end
+
+      factor = (total + delta) / total
+      open.each do |lot|
+        lot.qty *= factor
+        lot.price /= factor
+      end
+    end
+
     # FIFO: the oldest open lots go first. A sell of more than is on the
     # books (history that starts after the buy) costs nothing for the excess,
     # which overstates the gain rather than inventing a cost.
@@ -187,7 +236,7 @@ class Holding::Performance
         lot.qty -= take
         remaining -= take
         consumed << lot
-        lot_closed_on[lot.entry.id] = sell_entry.date if lot.qty.zero?
+        lot_closed_on[lot.entry.id] = sell_entry.date if lot.entry && lot.qty.zero?
       end
 
       Closing.new(sell_entry: sell_entry, qty: qty, proceeds: qty * price, cost: cost, lots: consumed)

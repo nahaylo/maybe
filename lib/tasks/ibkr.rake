@@ -111,9 +111,8 @@ namespace :ibkr do
     changed = Array(reports).select(&:changed?)
 
     changed.each do |report|
-      window_start = report.from && report.from - 1
       report.accounts.each do |account|
-        account.sync_later(window_start_date: window_start)
+        account.sync_later(window_start_date: report.sync_window_start(account))
         puts "queued sync for #{account.name}"
       end
     end
@@ -135,10 +134,14 @@ namespace :ibkr do
     date = ENV["DATE"].presence&.then { |v| Date.parse(v) } || Date.current
     statement = IbkrImport::Statement.new(cache: IbkrImport::Cache.new, scope: item.cache_scope)
 
+    xml = fixture.read
     target = statement.cache.path_for(statement.key_for(item.query_id, date))
     target.dirname.mkpath
-    target.write(fixture.read)
+    target.write(xml)
     puts "seeded #{target} (#{target.size} bytes)"
+
+    archived = statement.archive(item.query_id, xml)
+    puts "archived #{archived}" if archived
   end
 end
 

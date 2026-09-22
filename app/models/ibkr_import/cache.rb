@@ -48,6 +48,17 @@ class IbkrImport::Cache
     root.join("#{key}.xml")
   end
 
+  # Keeps a copy of a fetched statement under a key that does not change with
+  # the calendar. The day key above is overwritten by every fresh fetch of the
+  # same query, which is what a backfill does when it moves the query's period
+  # year by year and re-fetches each time -- without this, only the last
+  # period would survive to be replayed.
+  #
+  # @return [Pathname] the archived file
+  def archive(key, payload)
+    write(root.join("statements", "#{key}.xml"), payload)
+  end
+
   def cached?(key)
     path_for(key).exist?
   end

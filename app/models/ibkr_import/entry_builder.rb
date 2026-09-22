@@ -13,6 +13,11 @@
 #   * for shares that arrived without a trade (IBKR's stock bonuses), a Trade
 #     at IBKR's lot cost plus an offsetting income row, so the position and
 #     its cost basis match IBKR's while cash stays flat;
+#   * a Trade per corporate action leg: a split or spin-off at price zero
+#     (the share count changes, the money already spent does not), a merger
+#     as a sale of the old shares at IBKR's value and a purchase of the new
+#     ones for what was not paid in cash, so cash and cost basis both come
+#     out right. Legs of an identity change that cancel out book nothing;
 #   * a Security::Price per open position (IBKR's mark on the report date) and
 #     per trade (that day's close), so holdings revalue without a market data
 #     provider -- there is none configured any more.
@@ -27,7 +32,7 @@ class IbkrImport::EntryBuilder
   # down on the day they are sent, which settles at IBKR a day later.
   CASH_COLLISION_WINDOW = 1
 
-  CREATED_STATUSES = %i[created_trade created_commission created_cash created_fx created_grant].freeze
+  CREATED_STATUSES = %i[created_trade created_commission created_cash created_fx created_grant created_action].freeze
 
   Outcome = Data.define(:row, :status, :entry, :detail) do
     def created? = IbkrImport::EntryBuilder::CREATED_STATUSES.include?(status)
@@ -53,15 +58,20 @@ class IbkrImport::EntryBuilder
   # Rows that are income or cost thrown off by the holdings, never a transfer.
   INVESTMENT_ACTIVITY_KIND = "investment_activity".freeze
 
-  def build!(trades:, cash:, lots: [])
+  # @param corporate_actions [Array<IbkrImport::Statement::CorporateActionRow>]
+  def build!(trades:, cash:, lots: [], corporate_actions: [])
     seen = Entry.where(account_id: accounts.values.map(&:id))
                 .where.not(external_id: nil)
                 .pluck(:external_id)
                 .to_set
     @rows = trades + cash
 
+    # Actions go after the trades they adjust (a split needs the position on
+    # file to work out its ratio) and before the lots, so a lot a spin-off or
+    # merger created is recognised as such rather than booked as a bonus.
     trades.flat_map { |row| row.fx? ? build_fx(row, seen) : build_trade(row, seen) } +
       cash.map { |row| build_cash(row, seen) } +
+      build_actions(corporate_actions, seen) +
       lots.select(&:outside_trade?).map { |row| build_grant(row, seen) }
   end
 
@@ -173,6 +183,11 @@ class IbkrImport::EntryBuilder
       cost = (row.cost || row.qty * row.price).round(2)
       security = security_for(row)
 
+      if explained_by_action?(account, row, security)
+        return Outcome.new(row: row, status: :skipped_action, entry: nil,
+                           detail: "lot came from a corporate action that is already booked")
+      end
+
       entry = account.entries.new(
         external_id: row.external_id,
         date: row.date,
@@ -194,6 +209,156 @@ class IbkrImport::EntryBuilder
       seen << row.external_id << offset.external_id
       Outcome.new(row: row, status: :created_grant, entry: entry,
                   detail: "#{row.qty.to_s('F')} @ #{row.price.round(4).to_s('F')}, offset by #{row.name.inspect}")
+    end
+
+    # A lot with no order behind it is a bonus only when no corporate action
+    # accounts for it: a spin-off, merger or rights issue leaves the same kind
+    # of lot, and its trade is on file by the time the lots are looked at.
+    def explained_by_action?(account, row, security)
+      return true if row.originating_transaction_id.present? &&
+                     account.entries.exists?(external_id: "ibkr-ca-#{row.originating_transaction_id}")
+
+      account.entries
+             .where("external_id LIKE 'ibkr-ca-%'")
+             .where(entryable: account.trades.where(security: security))
+             .exists?
+    end
+
+    # Legs of one action are worked out together: they share the cash and the
+    # value that moved. Legs on the same holding are netted first, which is
+    # what turns an identity change (-1 BLK.OLD, +1 BLK) into nothing at all
+    # and a consolidation (-5 UL, +4.4444 UL) into a single adjustment.
+    def build_actions(rows, seen)
+      rows.group_by(&:action_id).values.flat_map do |group|
+        legs = net_legs(group)
+        prices = leg_prices(legs)
+        outcomes = legs.map { |leg| build_action_leg(leg, prices[leg], seen) }
+        outcomes + build_action_cash(legs, prices, seen)
+      end
+    end
+
+    def net_legs(group)
+      group.group_by(&:ticker).map do |ticker, legs|
+        next legs.first if legs.size == 1
+
+        legs.first.with(
+          external_id: "ibkr-ca-#{legs.first.action_id}-#{ticker}",
+          symbol: ticker,
+          qty: legs.sum(&:qty),
+          proceeds: legs.sum(&:proceeds),
+          value: legs.sum(&:value)
+        )
+      end
+    end
+
+    # Shares given up leave at IBKR's value for them; shares received cost
+    # whatever of that value did not come back as cash, shared by value.
+    # Anything without a value (a split, a spin-off, rights) is at zero.
+    def leg_prices(legs)
+      outs = legs.select(&:out?)
+      ins = legs.select(&:in?)
+      out_value = outs.sum { |leg| leg.value.abs }
+      in_value = ins.sum { |leg| leg.value.abs }
+      in_cost = [ out_value - legs.sum(&:proceeds), 0.to_d ].max
+
+      prices = {}
+      outs.each { |leg| prices[leg] = (leg.value.abs / leg.qty.abs).round(4) }
+      ins.each do |leg|
+        share = in_value.zero? ? 1.to_d / ins.size : leg.value.abs / in_value
+        prices[leg] = (in_cost * share / leg.qty.abs).round(4)
+      end
+      prices
+    end
+
+    def build_action_leg(leg, price, seen)
+      unless leg.supported?
+        return Outcome.new(row: leg, status: :skipped_unsupported, entry: nil,
+                           detail: "#{leg.asset_category} is not supported -- record it by hand if it matters")
+      end
+
+      if leg.qty.zero?
+        return Outcome.new(row: leg, status: :skipped_noop, entry: nil,
+                           detail: leg.proceeds.zero? ? "legs cancel out, nothing to book" : "cash only")
+      end
+
+      if seen.include?(leg.external_id)
+        return Outcome.new(row: leg, status: :skipped_imported, entry: nil, detail: "already imported")
+      end
+
+      account = accounts[leg.currency]
+      return no_account(leg, leg.currency) if account.nil?
+
+      security = security_for(leg.with(symbol: leg.ticker))
+      before = position_before(account, security, leg.date)
+
+      entry = account.entries.new(
+        external_id: leg.external_id,
+        date: leg.date,
+        name: leg.name,
+        amount: leg.qty * price,
+        currency: leg.currency,
+        notes: leg.description.presence,
+        entryable: Trade.new(qty: leg.qty, price: price, currency: leg.currency, security: security)
+      )
+      entry.save!
+      seen << leg.external_id
+
+      detail = "#{leg.type} #{leg.qty.to_s('F')} @ #{price.to_s('F')}"
+      detail += record_split_price!(security, leg, before) if leg.split? || (price.zero? && before.positive?)
+
+      Outcome.new(row: leg, status: :created_action, entry: entry, detail: detail)
+    end
+
+    # Cash the action paid that the legs' own prices do not already carry:
+    # cash in lieu of a fraction, or the cash part of a merger with no value
+    # on its legs.
+    def build_action_cash(legs, prices, seen)
+      booked = legs.select(&:out?).sum { |leg| leg.value.abs } -
+               legs.select(&:in?).sum { |leg| leg.qty.abs * prices[leg] }
+      remainder = (legs.sum(&:proceeds) - booked).round(2)
+      return [] if remainder.zero?
+
+      first = legs.first
+      id = "ibkr-ca-#{first.action_id}-cash"
+      return [] if seen.include?(id)
+
+      account = accounts[first.currency]
+      return [ no_account(first, first.currency, what: "its cash") ] if account.nil?
+
+      entry = create_transaction!(
+        account,
+        external_id: id, date: first.date, name: "#{first.label}: cash for #{first.ticker}",
+        amount: -remainder, currency: first.currency, notes: first.description.presence,
+        kind: INVESTMENT_ACTIVITY_KIND, security: security_for(first.with(symbol: first.ticker))
+      )
+      seen << id
+
+      [ Outcome.new(row: first, status: :created_action, entry: entry, detail: "cash #{remainder.to_s('F')} #{first.currency}") ]
+    end
+
+    # Shares of the security in this account up to and including the day,
+    # from the trades on file. History imported oldest first makes this the
+    # position the action applied to.
+    def position_before(account, security, date)
+      account.trades.where(security: security)
+             .joins(:entry).where(entries: { date: ..date })
+             .sum(:qty)
+    end
+
+    # After a split every stored price before it is in old shares. Without a
+    # mark on the split day the holding would be valued at the old price for
+    # the new count until the next mark -- four times too much for a 4-for-1.
+    # Carry the last known price across, scaled.
+    def record_split_price!(security, leg, before)
+      after = before + leg.qty
+      return "" unless before.positive? && after.positive?
+
+      last = security.prices.where(currency: leg.currency).where(date: ...leg.date).order(date: :desc).first
+      return "" if last.nil?
+
+      price = (last.price * before / after).round(4)
+      security.prices.find_or_initialize_by(date: leg.date, currency: leg.currency).update!(price: price)
+      ", price #{last.price.to_s('F')} -> #{price.to_s('F')}"
     end
 
     def build_commission(row, seen)

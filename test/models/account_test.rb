@@ -75,4 +75,21 @@ class AccountTest < ActiveSupport::TestCase
     assert_equal "Investments", account.short_subtype_label
     assert_equal "Investments", account.long_subtype_label
   end
+  test "closed holdings are the sold-out securities' latest rows, and never a held one" do
+    account = accounts(:investment)
+    account.entries.delete_all
+    account.holdings.delete_all
+    sold = Security.create!(ticker: "MMP", offline: true)
+    held = Security.create!(ticker: "OKE", offline: true)
+    [ sold, held ].each do |security|
+      account.entries.create!(date: Date.new(2023, 1, 5), name: "buy", amount: 100, currency: "USD",
+                              entryable: Trade.new(qty: 1, price: 100, currency: "USD", security: security))
+    end
+    account.holdings.create!(security: sold, date: Date.new(2023, 9, 22), qty: 1, price: 100, amount: 100, currency: "USD")
+    account.holdings.create!(security: sold, date: Date.new(2023, 9, 23), qty: 0, price: 0, amount: 0, currency: "USD")
+    account.holdings.create!(security: held, date: Date.new(2023, 9, 23), qty: 1, price: 100, amount: 100, currency: "USD")
+
+    assert_equal [ sold ], account.closed_holdings.map(&:security)
+    assert_equal Date.new(2023, 9, 23), account.closed_holdings.sole.date
+  end
 end

@@ -43,9 +43,9 @@ class UI::AccountPage < ApplicationComponent
   def tabs
     case account.accountable_type
     when "Investment"
-      # What you own and how it is doing come first; the raw activity feed is
-      # the audit trail behind them.
-      [ :holdings, :performance, :activity ]
+      # What you own comes first, then what you no longer own and how it all
+      # did; the raw activity feed is the audit trail behind them.
+      [ :holdings, :closed, :performance, :activity ]
     when "Vehicle"
       # A vehicle's summary -- value, mileage, fuel -- is what you open the page
       # for. Costs are what it spends elsewhere; its own activity is a handful
@@ -64,7 +64,7 @@ class UI::AccountPage < ApplicationComponent
       activity_feed
     when :costs
       costs
-    when :holdings, :performance, :overview
+    when :holdings, :closed, :performance, :overview
       # Accountable is responsible for implementing the partial in the correct folder
       render "#{account.accountable_type.downcase.pluralize}/tabs/#{tab}", account: account
     end
