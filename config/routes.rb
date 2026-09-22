@@ -122,6 +122,9 @@ Rails.application.routes.draw do
   end
 
   resources :holdings, only: %i[index new show destroy]
+  # The Performance tab of an investment account: realised gains and dividends
+  # for one year. Loaded lazily into its own frame, like holdings.
+  resource :investment_performance, only: :show
   resources :trades, only: %i[show new create update destroy]
   resources :valuations, only: %i[show new create update destroy] do
     post :confirm_create, on: :collection

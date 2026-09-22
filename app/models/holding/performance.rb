@@ -78,14 +78,31 @@ class Holding::Performance
   end
 
   def closings = @closings
-  def realized_gain = money(@closings.sum(&:gain))
 
-  # Signed sums, so a reversed dividend or a refunded tax nets out in its own
-  # line instead of showing up as income of another kind.
-  def dividends = money(sum_cash { |e| dividend?(e) ? -e.amount : 0 })
-  def withholding_tax = money(sum_cash { |e| tax?(e) ? e.amount : 0 })
-  def fees = money(sum_cash { |e| !dividend?(e) && !tax?(e) && e.amount.positive? ? e.amount : 0 })
-  def other_income = money(sum_cash { |e| !dividend?(e) && !tax?(e) && e.amount.negative? ? -e.amount : 0 })
+  # The linked cash rows, sorted into what they are. A reversed dividend stays
+  # a dividend and a refunded tax stays tax, so each line nets out on its own
+  # instead of showing up as income of another kind.
+  def dividend_entries = cash_entries.select { |e| dividend?(e) }
+  def tax_entries = cash_entries.select { |e| tax?(e) }
+  def fee_entries = cash_entries.select { |e| !dividend?(e) && !tax?(e) && e.amount.positive? }
+  def other_income_entries = cash_entries.select { |e| !dividend?(e) && !tax?(e) && e.amount.negative? }
+
+  # Inflows positive: what the holding paid you.
+  def dividends(range = nil) = money(sum_inflows(dividend_entries, range))
+  def other_income(range = nil) = money(sum_inflows(other_income_entries, range))
+  # Outflows positive: what it cost you.
+  def withholding_tax(range = nil) = money(sum_outflows(tax_entries, range))
+  def fees(range = nil) = money(sum_outflows(fee_entries, range))
+
+  def realized_gain(range = nil)
+    selected = range ? @closings.select { |c| range.cover?(c.sell_entry.date) } : @closings
+    money(selected.sum(&:gain))
+  end
+
+  # An entry's signed amount in the account's currency, converted at its date.
+  def converted_amount(entry)
+    convert(entry.amount_money, entry.date).amount
+  end
 
   # Everything the holding has produced: price gains realised and unrealised,
   # cash it paid out, minus what it cost to hold.
@@ -176,15 +193,16 @@ class Holding::Performance
       Closing.new(sell_entry: sell_entry, qty: qty, proceeds: qty * price, cost: cost, lots: consumed)
     end
 
-    # The block returns the signed amount to count for an entry, in the entry's
-    # own currency; it is converted at the entry's date.
-    def sum_cash
-      cash_entries.sum do |entry|
-        counted = yield(entry).to_d
-        next 0.to_d if counted.zero?
+    def sum_inflows(entries, range)
+      -in_range(entries, range).sum { |e| converted_amount(e) }
+    end
 
-        convert(Money.new(counted, entry.currency), entry.date).amount
-      end
+    def sum_outflows(entries, range)
+      in_range(entries, range).sum { |e| converted_amount(e) }
+    end
+
+    def in_range(entries, range)
+      range ? entries.select { |e| range.cover?(e.date) } : entries
     end
 
     def dividend?(entry)
