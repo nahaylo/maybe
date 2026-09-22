@@ -42,11 +42,19 @@ with all fields:
 | Cash Transactions (level: *Detail*) | deposits, withdrawals, dividends, withholding tax, interest, fees |
 | Open Positions (level: *Summary and Lot*) | summaries give IBKR's mark price per security on the report date; lots reveal shares that arrived without a trade |
 
+Leave the query's format settings at their defaults, because the parser
+depends on them: date format `yyyyMMdd`, time format `HHmmss`, date/time
+separator `;`. Other sections (Corporate Actions, Transfers, Statement of
+Funds) may be ticked but are not read.
+
 Note the **Query ID** shown in the list afterwards.
 
 **2. Create a token** under *Flex Queries > Flex Web Service Configuration*:
-enable it and generate a token. Tokens are read-only, tied to your login, and
-expire on the date you choose (up to a year).
+enable the service first, then generate a token. Tokens are read-only, tied to
+your login, and expire on the date you choose (up to a year). Leave the IP
+restriction empty unless the Docker host has a fixed public address. No other
+account permission or API subscription is required; the Flex Web Service is
+separate from Client Portal API and TWS API access.
 
 **3. Create one Maybe account per currency** in the UI: an **Investment**
 account for each currency the IBKR account books money in, for example

@@ -86,6 +86,36 @@ class Provider::IbkrFlexTest < ActiveSupport::TestCase
     assert_empty @waits
   end
 
+  test "collects from the SendRequest host when the returned host is unreachable" do
+    other = "https://gdcdyn.interactivebrokers.com/Universal/servlet/FlexStatementService.GetStatement"
+    stub_request(:get, "#{BASE}/SendRequest").with(query: hash_including("q" => "1"))
+      .to_return(body: envelope(status: "Success", reference: "5", url: other))
+    stub_request(:get, other).with(query: hash_including("q" => "5"))
+      .to_raise(Faraday::ConnectionFailed.new("getaddrinfo: Name or service not known"))
+    fallback = stub_request(:get, "https://ndcdyn.interactivebrokers.com/Universal/servlet/FlexStatementService.GetStatement")
+                 .with(query: { "t" => "tok", "q" => "5", "v" => "3" })
+                 .to_return(body: STATEMENT)
+
+    response = @provider.statement(query_id: "1")
+
+    assert_predicate response, :success?
+    assert_equal STATEMENT, response.data
+    assert_requested fallback
+  end
+
+  test "an unreachable host with no alternative is reported as a provider error" do
+    stub_request(:get, "#{BASE}/SendRequest").with(query: hash_including("q" => "1"))
+      .to_return(body: envelope(status: "Success", reference: "5", url: "#{BASE}/GetStatement"))
+    stub_request(:get, "#{BASE}/GetStatement").with(query: hash_including("q" => "5"))
+      .to_raise(Faraday::ConnectionFailed.new("connection refused"))
+
+    response = @provider.statement(query_id: "1")
+
+    assert_not_predicate response, :success?
+    assert_kind_of Provider::IbkrFlex::Error, response.error
+    assert_requested :get, "#{BASE}/GetStatement", query: hash_including("q" => "5"), times: 1
+  end
+
   test "an HTTP failure is reported as a provider error with the body attached" do
     stub_request(:get, "#{BASE}/SendRequest").with(query: hash_including("q" => "1"))
       .to_return(status: 503, body: "down")

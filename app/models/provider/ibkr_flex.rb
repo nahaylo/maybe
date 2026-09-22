@@ -67,7 +67,7 @@ class Provider::IbkrFlex < Provider
 
     def fetch_statement(reference_code, url)
       MAX_ATTEMPTS.times do |attempt|
-        body = get(url, t: token, q: reference_code, v: VERSION)
+        body = get_with_host_fallback(url, t: token, q: reference_code, v: VERSION)
         status = parse_status(body)
 
         # Anything that is not a status envelope is the report.
@@ -85,6 +85,32 @@ class Provider::IbkrFlex < Provider
 
     def get(url, params)
       client.get(url, params).body
+    end
+
+    # SendRequest names the GetStatement host itself, and it is not always the
+    # one SendRequest was sent to (gdcdyn vs ndcdyn). They are aliases of one
+    # service, and the returned one has been seen not to resolve from behind
+    # some DNS resolvers. When it cannot be reached, retry the same path on the
+    # host that just answered SendRequest.
+    def get_with_host_fallback(url, params)
+      get(url, params)
+    rescue Faraday::ConnectionFailed => e
+      fallback = on_base_host(url)
+      raise if fallback.nil? || fallback == url
+
+      Rails.logger.warn("Provider::IbkrFlex could not reach #{URI(url).host} (#{e.message}); retrying via #{URI(fallback).host}")
+      get(fallback, params)
+    end
+
+    def on_base_host(url)
+      target = URI(url)
+      base = URI(base_url)
+      target.scheme = base.scheme
+      target.host = base.host
+      target.port = base.port
+      target.to_s
+    rescue URI::Error
+      nil
     end
 
     def parse_status(body)
