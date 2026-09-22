@@ -17,9 +17,14 @@
     </div>
 
     <div class="flex items-center gap-1 text-sm">
+      <%# Visible only while the enclosing frame is loading the chosen year. %>
+      <span class="hidden [turbo-frame[busy]_&]:inline-flex items-center text-secondary mr-1">
+        <%= icon("loader-circle", size: "sm", class: "animate-spin") %>
+      </span>
       <% performance.years.each do |y| %>
         <%= link_to y, investment_performance_path(account_id: account.id, year: y),
-                    class: class_names("px-2 py-1 rounded-md", y == performance.year ? "bg-container-inset text-primary font-medium" : "text-secondary hover:text-primary") %>
+                    class: class_names("px-2 py-1 rounded-md", y == performance.year ? "bg-container-inset text-primary font-medium" : "text-secondary hover:text-primary"),
+                    aria: { current: y == performance.year ? "page" : nil } %>
       <% end %>
     </div>
   </div>
@@ -42,83 +47,44 @@
     <% end %>
   </div>
 
-  <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
-    <div class="bg-container-inset rounded-xl p-1">
-      <div class="grid grid-cols-12 items-center uppercase text-xs font-medium text-secondary px-4 py-2">
-        <%= tag.p "Closed in #{performance.year}", class: "col-span-5" %>
-        <%= tag.p "Sold at", class: "col-span-2 justify-self-end" %>
-        <%= tag.p "Cost", class: "col-span-2 justify-self-end" %>
-        <%= tag.p "Gain", class: "col-span-3 justify-self-end" %>
-      </div>
-
-      <div class="bg-container rounded-lg shadow-border-xs">
-        <% if performance.sales.any? %>
-          <% performance.sales.each_with_index do |sale, index| %>
-            <% closing = sale.closing %>
-            <%= render "shared/ruler" if index.positive? %>
-            <div class="grid grid-cols-12 items-center text-sm px-4 py-3">
-              <div class="col-span-5">
-                <%= link_to trade_path(closing.sell_entry), data: { turbo_frame: :drawer }, class: "text-primary font-medium hover:underline" do %>
-                  <%= sale.security.ticker %>
-                <% end %>
-                <p class="text-secondary text-xs">
-                  <%= l(sale.date, format: :short) %> · <%= number_with_precision(closing.qty, precision: 4, strip_insignificant_zeros: true) %> shares
-                </p>
-              </div>
-              <p class="col-span-2 text-right text-primary"><%= format_money(Money.new(closing.proceeds / closing.qty, currency)) %></p>
-              <p class="col-span-2 text-right text-secondary"><%= format_money(Money.new(closing.cost_per_share, currency)) %></p>
-              <div class="col-span-3 text-right" style="color: <%= gain_color.(Money.new(closing.gain, currency)) %>;">
-                <p><%= signed.(Money.new(closing.gain, currency)) %></p>
-                <% if closing.percent %>
-                  <p class="text-xs"><%= number_to_percentage(closing.percent, precision: 1) %></p>
-                <% end %>
-              </div>
-            </div>
-          <% end %>
-        <% else %>
-          <p class="text-secondary text-sm px-4 py-3">Nothing sold in <%= performance.year %>.</p>
-        <% end %>
-      </div>
+  <%# Sales of the year live on the Closed tab now; here the dividends get the full width. %>
+  <div class="bg-container-inset rounded-xl p-1">
+    <div class="grid grid-cols-12 items-center uppercase text-xs font-medium text-secondary px-4 py-2">
+      <%= tag.p "Dividends in #{performance.year}", class: "col-span-5" %>
+      <%= tag.p "Gross", class: "col-span-2 justify-self-end" %>
+      <%= tag.p "Tax", class: "col-span-2 justify-self-end" %>
+      <%= tag.p "Net", class: "col-span-3 justify-self-end" %>
     </div>
 
-    <div class="bg-container-inset rounded-xl p-1">
-      <div class="grid grid-cols-12 items-center uppercase text-xs font-medium text-secondary px-4 py-2">
-        <%= tag.p "Dividends in #{performance.year}", class: "col-span-5" %>
-        <%= tag.p "Gross", class: "col-span-2 justify-self-end" %>
-        <%= tag.p "Tax", class: "col-span-2 justify-self-end" %>
-        <%= tag.p "Net", class: "col-span-3 justify-self-end" %>
-      </div>
+    <div class="bg-container rounded-lg shadow-border-xs">
+      <% lines = performance.dividend_lines %>
+      <% if lines.any? %>
+        <% lines.each_with_index do |line, index| %>
+          <%= render "shared/ruler" if index.positive? %>
+          <div class="grid grid-cols-12 items-center text-sm px-4 py-3">
+            <div class="col-span-5">
+              <p class="text-primary font-medium"><%= line.security.ticker %></p>
+              <p class="text-secondary text-xs"><%= pluralize(line.payments, "payment") %></p>
+            </div>
+            <p class="col-span-2 text-right text-primary"><%= format_money(line.gross) %></p>
+            <p class="col-span-2 text-right text-secondary"><%= line.tax.zero? ? "--" : "−#{format_money(line.tax)}" %></p>
+            <p class="col-span-3 text-right text-primary font-medium"><%= format_money(line.net) %></p>
+          </div>
+        <% end %>
 
-      <div class="bg-container rounded-lg shadow-border-xs">
-        <% lines = performance.dividend_lines %>
-        <% if lines.any? %>
-          <% lines.each_with_index do |line, index| %>
-            <%= render "shared/ruler" if index.positive? %>
-            <div class="grid grid-cols-12 items-center text-sm px-4 py-3">
-              <div class="col-span-5">
-                <p class="text-primary font-medium"><%= line.security.ticker %></p>
-                <p class="text-secondary text-xs"><%= pluralize(line.payments, "payment") %></p>
-              </div>
-              <p class="col-span-2 text-right text-primary"><%= format_money(line.gross) %></p>
-              <p class="col-span-2 text-right text-secondary"><%= line.tax.zero? ? "--" : "−#{format_money(line.tax)}" %></p>
-              <p class="col-span-3 text-right text-primary font-medium"><%= format_money(line.net) %></p>
+        <%= render "shared/ruler" %>
+        <%# Net by month, so the rhythm of payments is visible at a glance. %>
+        <div class="grid grid-cols-12 gap-1 px-4 py-3 text-xs">
+          <% performance.dividends_by_month.each_with_index do |amount, i| %>
+            <div class="text-center">
+              <p class="text-secondary"><%= l(Date.new(performance.year, i + 1, 1), format: "%b") %></p>
+              <p class="<%= amount.zero? ? 'text-secondary' : 'text-primary font-medium' %>"><%= amount.zero? ? "·" : format_money(amount) %></p>
             </div>
           <% end %>
-
-          <%= render "shared/ruler" %>
-          <%# Net by month, so the rhythm of payments is visible at a glance. %>
-          <div class="grid grid-cols-12 gap-1 px-4 py-3 text-xs">
-            <% performance.dividends_by_month.each_with_index do |amount, i| %>
-              <div class="text-center">
-                <p class="text-secondary"><%= l(Date.new(performance.year, i + 1, 1), format: "%b") %></p>
-                <p class="<%= amount.zero? ? 'text-secondary' : 'text-primary font-medium' %>"><%= amount.zero? ? "·" : format_money(amount) %></p>
-              </div>
-            <% end %>
-          </div>
-        <% else %>
-          <p class="text-secondary text-sm px-4 py-3">No dividends in <%= performance.year %>.</p>
-        <% end %>
-      </div>
+        </div>
+      <% else %>
+        <p class="text-secondary text-sm px-4 py-3">No dividends in <%= performance.year %>.</p>
+      <% end %>
     </div>
   </div>
 </div>

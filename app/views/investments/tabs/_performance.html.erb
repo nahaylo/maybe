@@ -1,5 +1,8 @@
 <%# locals: (account:) %>
 
-<%= turbo_frame_tag dom_id(account, :performance), src: investment_performance_path(account_id: account.id) do %>
+<%# While a year link reloads the frame, Turbo marks it [busy]: dim it and
+    take the links out of play so a second click cannot queue another load. %>
+<%= turbo_frame_tag dom_id(account, :performance), src: investment_performance_path(account_id: account.id),
+                    class: "[&[busy]]:opacity-60 [&[busy]]:pointer-events-none [&[busy]]:cursor-progress" do %>
   <%= render "entries/loading" %>
 <% end %>

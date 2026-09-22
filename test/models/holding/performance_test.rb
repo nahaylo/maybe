@@ -1,6 +1,6 @@
 require "test_helper"
 
-# Яна's TSLA history, verbatim: 5 bought at 375, all 5 sold at 427.56, then 3
+# A real TSLA history, verbatim: 5 bought at 375, all 5 sold at 427.56, then 3
 # bought at 307.325 and still held; a mark of 364.27 on the latest report.
 class Holding::PerformanceTest < ActiveSupport::TestCase
   setup do
