@@ -143,9 +143,15 @@ bin/rails ibkr:import OFFLINE=1 ONLY=U1234567
 ```
 
 Oldest year first; overlap between ranges is harmless because every row is
-keyed by IBKR's own ids. Open Positions in a past-period report still describe
-today's positions, so lot-derived rows repeat in every pass and are skipped
-after the first. Finish with a normal fetch under *Last 365 Calendar Days*.
+keyed by IBKR's own ids. Open Positions in a past-period report describe the
+positions at that period's end, and a lot that repeats across passes is
+skipped after the first. Finish with a normal fetch under *Last 365 Calendar
+Days*.
+
+A rule only touches transactions dated on or after its *effective date*,
+which defaults to the day the rule was made. Before a backfill, move the
+effective date of the IB category rules back to the first year imported, or
+the older dividends, tax and commissions stay uncategorised.
 
 ## One account per currency
 
