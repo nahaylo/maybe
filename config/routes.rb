@@ -127,6 +127,8 @@ Rails.application.routes.draw do
   resource :investment_performance, only: :show
   # Positions sold out entirely, with what they made. Same lazy frame pattern.
   resources :closed_holdings, only: :index
+  # Treemap of every open position across the family's investment accounts.
+  resource :portfolio_map, only: :show
   resources :trades, only: %i[show new create update destroy]
   resources :valuations, only: %i[show new create update destroy] do
     post :confirm_create, on: :collection
