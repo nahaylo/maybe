@@ -63,6 +63,14 @@ module Family::AutoTransferMatchable
     candidates = []
 
     Transfer.transaction do
+      # Every account's post-sync runs this family-wide, so syncing several
+      # accounts at once runs it concurrently. Without the lock, two runs read the
+      # same candidates and both create the same transfer; the loser raises a
+      # unique violation that rolls back its sync's completion. The lock is held
+      # until commit, and candidates_scope is only queried after it is taken, so a
+      # waiting run sees the transfers the first one created.
+      lock_auto_transfer_matching!
+
       candidates_scope.each do |match|
         next if used_transaction_ids.include?(match.inflow_transaction_id) ||
                used_transaction_ids.include?(match.outflow_transaction_id)
@@ -80,4 +88,13 @@ module Family::AutoTransferMatchable
       end
     end
   end
+
+  private
+    # Transaction-scoped Postgres advisory lock, one per family: released
+    # automatically on commit or rollback, and other families are not blocked.
+    def lock_auto_transfer_matching!
+      Transfer.connection.execute(
+        Transfer.sanitize_sql_array([ "SELECT pg_advisory_xact_lock(hashtext(?))", "auto_match_transfers:#{id}" ])
+      )
+    end
 end

@@ -18,6 +18,25 @@ class Family::AutoTransferMatchableTest < ActiveSupport::TestCase
     end
   end
 
+  # Concurrent post-syncs must not both read the same candidates, so the
+  # family's advisory lock has to be taken before the candidates query runs.
+  test "takes the family lock before reading candidates" do
+    create_transaction(date: 1.day.ago.to_date, account: @depository, amount: 500)
+    create_transaction(date: Date.current, account: @credit_card, amount: -500)
+
+    statements = []
+    callback = ->(*, payload) { statements << payload[:sql] }
+    ActiveSupport::Notifications.subscribed(callback, "sql.active_record") do
+      @family.auto_match_transfers!
+    end
+
+    lock_at = statements.index { |sql| sql.include?("pg_advisory_xact_lock") }
+    query_at = statements.index { |sql| sql.include?("inflow_candidates") }
+
+    assert lock_at, "expected the advisory lock to be taken"
+    assert_operator lock_at, :<, query_at
+  end
+
   # A dividend of a few dollars is within 5% of some card charge in the same
   # week nearly every time; only plain transactions may become transfer legs.
   test "does not match investment activity or one-time rows, even when the amounts agree" do
