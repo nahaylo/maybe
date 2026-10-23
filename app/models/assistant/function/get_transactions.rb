@@ -156,9 +156,12 @@ class Assistant::Function::GetTransactions < Assistant::Function
       entry = txn.entry
       {
         date: entry.date,
+        name: entry.name,
         amount: entry.amount.abs,
         currency: entry.currency,
         formatted_amount: entry.amount_money.abs.format,
+        quantity: txn.quantity,
+        unit: txn.unit,
         classification: entry.amount < 0 ? "income" : "expense",
         account: entry.account.name,
         category: txn.category&.name,
