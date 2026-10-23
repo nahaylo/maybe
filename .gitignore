@@ -116,3 +116,5 @@ scripts/
 !/devenv.nix
 !/devenv.yaml
 !/devenv.lock
+
+/.agents/
