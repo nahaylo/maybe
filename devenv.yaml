@@ -1,0 +1,12 @@
+inputs:
+  nixpkgs:
+    url: github:cachix/devenv-nixpkgs/rolling
+  # Exact Ruby versions (.ruby-version), which nixpkgs itself does not keep.
+  nixpkgs-ruby:
+    url: github:bobvanderlinden/nixpkgs-ruby
+    inputs:
+      nixpkgs:
+        follows: nixpkgs
+# Fail on a busy port instead of quietly moving to the next one: DB_PORT and
+# REDIS_URL in devenv.nix would then point at the wrong place.
+strict_ports: true

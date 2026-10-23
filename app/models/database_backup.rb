@@ -37,7 +37,19 @@ class DatabaseBackup
 
   class << self
     def mount_root
+      return Pathname.new(native_root) if native_root
+
       Pathname.new(File.directory?(MOUNT_ROOT) ? MOUNT_ROOT : Rails.root.join("storage", "backups").to_s)
+    end
+
+    # Outside a container (devenv) nothing is mounted: BACKUP_HOST_ROOT names the
+    # host folder itself, so dumps go straight there. Inside a container the same
+    # variable only describes the host side of MOUNT_ROOT, so this is nil.
+    def native_root
+      return nil if containerised?
+
+      root = ENV["BACKUP_HOST_ROOT"].to_s.strip
+      root if root.present? && File.directory?(root)
     end
 
     # Where dumps are written: a subfolder of the mount, chosen in the settings
@@ -67,7 +79,8 @@ class DatabaseBackup
     # relies on compose passing BACKUP_HOST_ROOT through. Nil when unknown.
     def host_directory
       root = ENV["BACKUP_HOST_ROOT"].to_s.strip
-      return nil if root.blank? || !mounted?
+      # Outside a container `directory` already is the host path.
+      return nil if root.blank? || !mounted? || !containerised?
 
       subdirectory.present? ? File.join(root, subdirectory) : root
     end
@@ -169,8 +182,13 @@ class DatabaseBackup
 
     # True when the mount is actually wired up, so the settings page can say so
     # rather than silently writing into the container.
+    #
+    # Outside a container there is no mount; what matters there is that
+    # BACKUP_HOST_ROOT points at a real folder.
     def mounted?
-      File.directory?(MOUNT_ROOT) && (!containerised? || File.stat(MOUNT_ROOT).dev != File.stat("/").dev)
+      return native_root.present? unless containerised?
+
+      File.directory?(MOUNT_ROOT) && File.stat(MOUNT_ROOT).dev != File.stat("/").dev
     rescue SystemCallError
       false
     end

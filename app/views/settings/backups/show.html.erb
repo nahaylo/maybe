@@ -14,7 +14,11 @@
     </p>
 
     <% unless DatabaseBackup.mounted? %>
-      <%= render DS::Alert.new(message: t(".not_mounted", mount: DatabaseBackup::MOUNT_ROOT), variant: :warning) %>
+      <% if DatabaseBackup.containerised? %>
+        <%= render DS::Alert.new(message: t(".not_mounted", mount: DatabaseBackup::MOUNT_ROOT), variant: :warning) %>
+      <% else %>
+        <%= render DS::Alert.new(message: t(".not_configured", path: DatabaseBackup.mount_root), variant: :warning) %>
+      <% end %>
     <% end %>
 
     <% if DatabaseBackup.subdirectory.blank? %>

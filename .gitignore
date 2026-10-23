@@ -107,3 +107,12 @@ scripts/
 .windsurfrules
 .cursor/rules/dev_workflow.mdc
 .cursor/rules/taskmaster.mdc
+
+# devenv: the config is tracked, its state (database, gems) is not. The
+# negations also override a global excludes file that ignores devenv*.
+/.devenv*
+/devenv.local.nix
+/.direnv
+!/devenv.nix
+!/devenv.yaml
+!/devenv.lock

@@ -9,6 +9,7 @@ en:
         resolves_to: "Backups are written to:"
         in_container: "(%{path} inside the container)"
         not_mounted: "%{mount} is not a mounted host folder, so backups stay inside the container. Set BACKUP_HOST_ROOT in .env and run docker compose up -d."
+        not_configured: "BACKUP_HOST_ROOT is not set to an existing folder, so backups go to %{path} inside the app checkout. Set it in .env and restart the web process."
         save_path: Save location
         not_writable: "Cannot write to %{path}."
         missing_directory: "%{path} does not exist. Create it yourself, then reload this page."

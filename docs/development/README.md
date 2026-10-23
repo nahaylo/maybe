@@ -6,6 +6,7 @@ tasks added on top of upstream Maybe.
 | Guide | What it covers |
 | --- | --- |
 | [Local Docker setup](local-docker.md) | Running your own checkout in Docker, ports, hostnames, env vars |
+| [Local devenv setup](local-devenv.md) | Running the same checkout natively with devenv, without Docker |
 | [Running tests](testing.md) | Running the Minitest suite inside Docker, and the two gotchas that will bite you |
 | [Exchange rates](exchange-rates.md) | Backfilling currency rates now that the upstream provider is offline |
 | [Database backups](backups.md) | Taking and restoring `pg_dump` backups, and how they differ from Export data |

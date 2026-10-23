@@ -175,6 +175,7 @@ class DatabaseBackupTest < ActiveSupport::TestCase
   # The page must show where dumps land on the host, which the container can only
   # know because compose passes BACKUP_HOST_ROOT through.
   test "reports the host path for the chosen folder" do
+    DatabaseBackup.stubs(:containerised?).returns(true)
     DatabaseBackup.stubs(:mounted?).returns(true)
     Setting.backup_subdirectory = "nightly"
 
@@ -197,6 +198,38 @@ class DatabaseBackupTest < ActiveSupport::TestCase
 
     with_env_overrides("BACKUP_HOST_ROOT" => "/Users/me/iCloud") do
       assert_nil DatabaseBackup.host_directory
+    end
+  end
+
+  # devenv runs the app on the host, where nothing is mounted at MOUNT_ROOT and
+  # BACKUP_HOST_ROOT is the folder itself.
+  test "outside a container, BACKUP_HOST_ROOT is the backup root" do
+    DatabaseBackup.unstub(:mount_root)
+    DatabaseBackup.stubs(:containerised?).returns(false)
+
+    with_env_overrides("BACKUP_HOST_ROOT" => @dir) do
+      assert_equal Pathname.new(@dir), DatabaseBackup.mount_root
+      assert DatabaseBackup.mounted?
+      assert_nil DatabaseBackup.host_directory, "directory already is the host path"
+    end
+  end
+
+  test "outside a container, a missing BACKUP_HOST_ROOT is not treated as a mount" do
+    DatabaseBackup.unstub(:mount_root)
+    DatabaseBackup.stubs(:containerised?).returns(false)
+
+    with_env_overrides("BACKUP_HOST_ROOT" => File.join(@dir, "nope")) do
+      assert_not DatabaseBackup.mounted?
+      assert_not_equal Pathname.new(File.join(@dir, "nope")), DatabaseBackup.mount_root
+    end
+  end
+
+  test "inside a container, BACKUP_HOST_ROOT does not replace the mount" do
+    DatabaseBackup.unstub(:mount_root)
+    DatabaseBackup.stubs(:containerised?).returns(true)
+
+    with_env_overrides("BACKUP_HOST_ROOT" => @dir) do
+      assert_not_equal Pathname.new(@dir), DatabaseBackup.mount_root
     end
   end
 
