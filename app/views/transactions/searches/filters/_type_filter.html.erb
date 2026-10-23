@@ -1,9 +1,9 @@
-<%# locals: (form:, types: nil, auto_submit: false) %>
+<%# locals: (form:, types: nil, auto_submit: false, include_trade: false) %>
 
 <%# Boxes show only what is actually selected. Nothing checked means no
     filtering, so you start from everything and check the types you want to
-    narrow to. Checking all three is equivalent to none -- see
-    EntrySearch.type_condition. %>
+    narrow to. Checking every offered type is equivalent to none -- see
+    EntrySearch.apply_type_filter. %>
 <% selected = Array(types) %>
 
 <%# The global filter menu applies on its own Apply button, so auto-submit is
@@ -11,7 +11,11 @@
 <% checkbox_data = auto_submit ? { "auto-submit-form-target": "auto" } : {} %>
 
 <div class="p-2 space-y-3">
-  <% [ [ "income", t(".income") ], [ "expense", t(".expense") ], [ "transfer", t(".transfer") ] ].each do |value, label| %>
+  <%# "trade" only makes sense where trades exist: the investment account feed
+      passes include_trade. The global transaction list never has trades. %>
+  <% options = [ [ "income", t(".income") ], [ "expense", t(".expense") ], [ "transfer", t(".transfer") ] ] %>
+  <% options << [ "trade", t(".trade") ] if include_trade %>
+  <% options.each do |value, label| %>
     <div class="flex items-center gap-3" data-filter-name="<%= value %>">
       <%= form.check_box :types,
                          {

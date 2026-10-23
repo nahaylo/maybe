@@ -186,6 +186,20 @@ class Account < ApplicationRecord
             .order(amount: :desc)
   end
 
+  # The latest holding row of every security that was traded here and is not
+  # held any more. The materialiser keeps a zero-quantity row from the last
+  # sale on, which is what makes a sold-out position addressable at all.
+  def closed_holdings
+    holdings.where(currency: currency, qty: 0)
+            .where(security_id: trades.select(:security_id))
+            .where(
+              id: holdings.select("DISTINCT ON (security_id) id")
+                          .where(currency: currency)
+                          .order(:security_id, date: :desc)
+            )
+            .includes(:security)
+  end
+
   def start_date
     first_entry_date = entries.minimum(:date) || Date.current
     first_entry_date - 1.day

@@ -25,26 +25,22 @@ class Holding < ApplicationRecord
     account.balance.zero? ? 1 : amount / account.balance * 100
   end
 
-  # Basic approximation of cost-basis
-  def avg_cost
-    avg_cost = account.trades
-      .with_entry
-      .joins(ActiveRecord::Base.sanitize_sql_array([
-        "LEFT JOIN exchange_rates ON (
-          exchange_rates.date = entries.date AND
-          exchange_rates.from_currency = trades.currency AND
-          exchange_rates.to_currency = ?
-        )", account.currency
-      ]))
-      .where(security_id: security.id)
-      .where("trades.qty > 0 AND entries.date <= ?", date)
-      .average("trades.price * COALESCE(exchange_rates.rate, 1)")
-
-    Money.new(avg_cost || price, currency)
+  # FIFO lots, realised and unrealised gains, dividends and fees for this
+  # security in this account -- see Holding::Performance.
+  def performance
+    @performance ||= Holding::Performance.new(account, security)
   end
 
+  # Cost per share of the shares actually held, FIFO. The previous figure was
+  # the plain average of every buy price ever, which blended sold lots into
+  # the current position.
+  def avg_cost
+    performance.open? ? performance.cost_basis_per_share : Money.new(price, currency)
+  end
+
+  # Unrealised gain on the current position.
   def trend
-    @trend ||= calculate_trend
+    performance.unrealized
   end
 
   def trades
@@ -59,15 +55,4 @@ class Holding < ApplicationRecord
 
     account.sync_later
   end
-
-  private
-    def calculate_trend
-      return nil unless amount_money
-
-      start_amount = qty * avg_cost
-
-      Trend.new \
-        current: amount_money,
-        previous: start_amount
-    end
 end

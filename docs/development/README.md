@@ -10,6 +10,7 @@ tasks added on top of upstream Maybe.
 | [Exchange rates](exchange-rates.md) | Backfilling currency rates now that the upstream provider is offline |
 | [Database backups](backups.md) | Taking and restoring `pg_dump` backups, and how they differ from Export data |
 | [Monobank import](monobank-import.md) | Pulling card transactions from the Monobank personal API |
+| [Interactive Brokers import](ibkr-import.md) | Pulling trades, cash movements and position marks from the IBKR Flex Web Service |
 
 ## Quick reference
 

@@ -1,0 +1,24 @@
+<%# locals: (ticker:, size: "w-9 h-9") %>
+
+<%# Parqet serves ticker logos at a stable URL, with good coverage of US and
+    European names including UCITS ETFs. It is still a public, undocumented
+    endpoint -- the last one, Synth's, vanished -- so a badge with the ticker's
+    letters sits behind it and takes over when the image fails. %>
+<% symbol = ticker.to_s.upcase %>
+<% color = Category::COLORS[symbol.sum % Category::COLORS.size] %>
+
+<div class="shrink-0 <%= size %>" data-controller="image-fallback">
+  <%= image_tag "https://assets.parqet.com/logos/symbol/#{ERB::Util.url_encode(symbol)}?format=png",
+                alt: symbol,
+                loading: "lazy",
+                class: "#{size} rounded-full object-contain bg-white",
+                data: { image_fallback_target: "image", action: "error->image-fallback#fallback" } %>
+
+  <%# Shown as `flex` by the controller; `hidden` and `flex` cannot coexist. %>
+  <div class="hidden <%= size %> rounded-full items-center justify-center text-xs font-semibold leading-none text-white"
+       style="background-color: <%= color %>;"
+       data-image-fallback-target="fallback"
+       aria-hidden="true">
+    <%= symbol.first(3) %>
+  </div>
+</div>

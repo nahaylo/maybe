@@ -1,0 +1,53 @@
+<div class="space-y-4 pb-12">
+  <div class="flex flex-wrap items-end justify-between gap-4">
+    <div>
+      <h1 class="text-xl font-medium text-primary">Portfolio map</h1>
+      <p class="text-sm text-secondary">Every open position across your investment accounts. Size is what it is worth now, colour is its return against what it cost.</p>
+    </div>
+
+    <div class="flex items-center gap-1 text-sm">
+      <span class="text-secondary mr-1">Group by</span>
+      <% Family::PortfolioMap::GROUPINGS.each do |grouping| %>
+        <%= link_to grouping.humanize, portfolio_map_path(group: grouping),
+                    class: class_names("px-2 py-1 rounded-md", grouping == @map.group_by ? "bg-container-inset text-primary font-medium" : "text-secondary hover:text-primary"),
+                    aria: { current: grouping == @map.group_by ? "page" : nil } %>
+      <% end %>
+    </div>
+  </div>
+
+  <% if @map.empty? %>
+    <div class="bg-container rounded-xl shadow-border-xs p-8 text-center">
+      <p class="text-primary font-medium">No open positions yet</p>
+      <p class="text-sm text-secondary">Positions appear here once an investment account holds shares.</p>
+    </div>
+  <% else %>
+    <div class="grid grid-cols-2 md:grid-cols-3 gap-2">
+      <div class="bg-container rounded-xl shadow-border-xs p-4">
+        <p class="text-xs uppercase text-secondary">Market value</p>
+        <p class="text-lg font-medium text-primary"><%= format_money(@map.total_value) %></p>
+      </div>
+      <div class="bg-container rounded-xl shadow-border-xs p-4">
+        <p class="text-xs uppercase text-secondary">Cost</p>
+        <p class="text-lg font-medium text-primary"><%= format_money(@map.total_cost) %></p>
+      </div>
+      <div class="bg-container rounded-xl shadow-border-xs p-4 col-span-2 md:col-span-1">
+        <p class="text-xs uppercase text-secondary">Unrealised</p>
+        <div class="text-lg font-medium"><%= render "shared/trend_change", trend: @map.total_trend %></div>
+      </div>
+    </div>
+
+    <div class="bg-container-inset rounded-xl shadow-border-xs p-1">
+      <div class="w-full h-[480px] md:h-[620px]"
+           data-controller="portfolio-treemap"
+           data-portfolio-treemap-tree-value="<%= @map.as_tree(url_for_holding: ->(holding) { holding_path(holding) }).to_json %>"></div>
+    </div>
+
+    <%# The colour scale the tiles use, clamped at ±30%. %>
+    <div class="flex items-center justify-center gap-2 text-xs text-secondary">
+      <span>−30%</span>
+      <div class="h-2 w-48 rounded-full" style="background: linear-gradient(90deg, #c2413b, #6b7280, #2f9e5a);"></div>
+      <span>+30%</span>
+      <span class="ml-4">Converted to <%= @map.currency %> for size; returns in each holding's own currency.</span>
+    </div>
+  <% end %>
+</div>

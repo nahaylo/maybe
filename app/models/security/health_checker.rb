@@ -16,6 +16,14 @@ class Security::HealthChecker
 
   class << self
     def check_all
+      # Without a provider every check fails, and after enough failures a
+      # security is taken offline and its prices deleted -- including prices
+      # written by an importer (IbkrImport). No provider means nothing to check.
+      if Security.provider.nil?
+        Rails.logger.info("Security::HealthChecker skipped: no securities provider configured")
+        return
+      end
+
       # No daily limit for unchecked securities (they are prioritized)
       never_checked_scope.find_each do |security|
         new(security).run_check

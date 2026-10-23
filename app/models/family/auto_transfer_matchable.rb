@@ -29,10 +29,17 @@ module Family::AutoTransferMatchable
       )")
       .joins("JOIN accounts inflow_accounts ON inflow_accounts.id = inflow_candidates.account_id")
       .joins("JOIN accounts outflow_accounts ON outflow_accounts.id = outflow_candidates.account_id")
+      .joins("JOIN transactions inflow_transactions ON inflow_transactions.id = inflow_candidates.entryable_id")
+      .joins("JOIN transactions outflow_transactions ON outflow_transactions.id = outflow_candidates.entryable_id")
       .where("inflow_accounts.family_id = ? AND outflow_accounts.family_id = ?", self.id, self.id)
       .where("inflow_accounts.status IN ('draft', 'active')")
       .where("outflow_accounts.status IN ('draft', 'active')")
       .where("inflow_candidates.entryable_type = 'Transaction' AND outflow_candidates.entryable_type = 'Transaction'")
+      # Only plain transactions can turn out to be transfers. The transfer kinds
+      # already are one; one_time is a one-off by declaration; investment_activity
+      # is a dividend, tax or fee, which the cross-currency 5% tolerance would
+      # otherwise happily pair with any small card charge in the same week.
+      .where("inflow_transactions.kind = 'standard' AND outflow_transactions.kind = 'standard'")
       .where("
         (
           inflow_candidates.currency = outflow_candidates.currency AND
@@ -56,6 +63,14 @@ module Family::AutoTransferMatchable
     candidates = []
 
     Transfer.transaction do
+      # Every account's post-sync runs this family-wide, so syncing several
+      # accounts at once runs it concurrently. Without the lock, two runs read the
+      # same candidates and both create the same transfer; the loser raises a
+      # unique violation that rolls back its sync's completion. The lock is held
+      # until commit, and candidates_scope is only queried after it is taken, so a
+      # waiting run sees the transfers the first one created.
+      lock_auto_transfer_matching!
+
       candidates_scope.each do |match|
         next if used_transaction_ids.include?(match.inflow_transaction_id) ||
                used_transaction_ids.include?(match.outflow_transaction_id)
@@ -73,4 +88,13 @@ module Family::AutoTransferMatchable
       end
     end
   end
+
+  private
+    # Transaction-scoped Postgres advisory lock, one per family: released
+    # automatically on commit or rollback, and other families are not blocked.
+    def lock_auto_transfer_matching!
+      Transfer.connection.execute(
+        Transfer.sanitize_sql_array([ "SELECT pg_advisory_xact_lock(hashtext(?))", "auto_match_transfers:#{id}" ])
+      )
+    end
 end

@@ -57,6 +57,20 @@ class Security::HealthCheckerTest < ActiveSupport::TestCase
     )
   end
 
+  # With no provider every check would fail, and after enough failures the
+  # security is taken offline and its prices deleted -- prices an importer
+  # (IbkrImport) may have written. No provider means nothing to judge.
+  test "does nothing when no securities provider is configured" do
+    Security.stubs(:provider).returns(nil)
+    Security::Price.create!(security: @new_security, date: Date.current, price: 10, currency: "USD")
+
+    Security::HealthChecker.any_instance.expects(:run_check).never
+    Security::HealthChecker.check_all
+
+    assert_nil @new_security.reload.last_health_check_at
+    assert_equal 1, @new_security.prices.count
+  end
+
   test "any security without a health check runs" do
     to_check = Security.where(last_health_check_at: nil).or(Security.where(last_health_check_at: ..Security::HealthChecker::HEALTH_CHECK_INTERVAL.ago))
     Security::HealthChecker.any_instance.expects(:run_check).times(to_check.count)
